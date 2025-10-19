@@ -9,11 +9,7 @@ import { AdminModule } from './admin/admin.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { AppointmentModule } from './appointment/appointment.module';
 import { SpecialtyModule } from './specialty/specialty.module';
-import { MedicalOptionModule } from './medical-option/medical-option.module';
-import { RemoteMedicalOptionModule } from './remote-medical-option/remote-medical-option.module';
-import { FaqitemModule } from './faqitem/faqitem.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
-import { PostModule } from './post/post.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { ReviewModule } from './review/review.module';
 import config from './config/config';
@@ -21,13 +17,8 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-store';
 import { CacheService } from './cache.service';
 import { ReportModule } from './report/report.module';
-import { PostFavoriteModule } from './post-favorite/post-favorite.module';
-import { PostCommentModule } from './post-comment/post-comment.module';
 import { NotificationModule } from './notification/notification.module';
 import { UserModule } from './user/user.module';
-import { NewsModule } from './news/news.module';
-import { NewsCommentModule } from './news-comment/news-comment.module';
-import { NewsFavoriteModule } from './news-favorite/news-favorite.module';
 
 @Module({
   imports: [
@@ -60,22 +51,12 @@ import { NewsFavoriteModule } from './news-favorite/news-favorite.module';
     DoctorModule,
     AppointmentModule,
     SpecialtyModule,
-    MedicalOptionModule,
-    RemoteMedicalOptionModule,
-    FaqitemModule,
     CloudinaryModule,
-    PostModule,
     FirebaseModule,
-    PostModule,
     ReviewModule,
     ReportModule,
-    PostFavoriteModule,
-    PostCommentModule,
     NotificationModule,
     UserModule,
-    NewsModule,
-    NewsCommentModule,
-    NewsFavoriteModule,
   ],
   controllers: [AppController],
   providers: [AppService, CacheService],
