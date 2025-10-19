@@ -32,10 +32,6 @@ async function bootstrap() {
     }
   }
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe({

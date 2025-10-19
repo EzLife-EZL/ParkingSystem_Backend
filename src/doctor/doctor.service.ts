@@ -8,7 +8,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { SignupDto } from 'src/dtos/signup.dto';
-import { Doctor } from 'src/schemas/doctor.schema';
 import { loginDto } from 'src/dtos/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/schemas/user.schema';
@@ -19,6 +18,7 @@ import { CacheService } from 'src/cache.service';
 import { Clinic } from 'src/schemas/clinic.schema';
 import { Express } from 'express';
 import { Appointment, AppointmentStatus } from 'src/schemas/Appointment.schema';
+import { Doctor } from 'src/schemas/doctor.schema';
 
 @Injectable()
 export class DoctorService {

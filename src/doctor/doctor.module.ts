@@ -19,7 +19,7 @@ import { CacheService } from 'src/cache.service';
   imports: [
     CloudinaryModule,
     MongooseModule.forFeature([
-      { name: Doctor.name, schema: DoctorSchema },
+      { name: 'Doctor', schema: DoctorSchema },
       { name: User.name, schema: UserSchema },
       { name: Appointment.name, schema: AppointmentSchema },
       { name: PendingDoctor.name, schema: PendingDoctorSchema },
