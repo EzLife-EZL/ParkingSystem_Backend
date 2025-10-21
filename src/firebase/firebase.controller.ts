@@ -4,11 +4,11 @@ import { Body, Controller, Param, Post, Get, Put, Delete } from '@nestjs/common'
 
 @Controller('firebase')
 export class FirebaseController {
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(private readonly firebaseService: FirebaseService) { }
 
   @Post('create')
-  async create(@Body() body: {path: string, data: any}) {
-    return this.firebaseService.createReccord(body.path, body.data);
+  async create(@Body() body: { path: string, data: any }) {
+    return this.firebaseService.createRecord(body.path, body.data);
   }
 
   @Get('read/:path')
@@ -17,7 +17,7 @@ export class FirebaseController {
   }
 
   @Put('update/:path')
-  async update(@Param('path') path: string,@Body() data: any) {
+  async update(@Param('path') path: string, @Body() data: any) {
     return this.firebaseService.updateRecord(path, data);
   }
 

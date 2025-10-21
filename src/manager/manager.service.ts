@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { SignupDto } from 'src/dtos/signup.dto';
+import { Doctor } from 'src/schemas/doctor.schema';
 import { loginDto } from 'src/dtos/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/schemas/user.schema';
@@ -18,10 +19,11 @@ import { CacheService } from 'src/cache.service';
 import { Clinic } from 'src/schemas/clinic.schema';
 import { Express } from 'express';
 import { Appointment, AppointmentStatus } from 'src/schemas/Appointment.schema';
-import { Doctor } from 'src/schemas/doctor.schema';
+import { CreateSlotDto } from './dto/createSlot.dto';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
-export class DoctorService {
+export class ManagerService {
   constructor(
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     @InjectModel(User.name) private userModel: Model<User>,
@@ -31,7 +33,49 @@ export class DoctorService {
     private jwtService: JwtService,
     private cloudinaryService: CloudinaryService,
     private cacheService: CacheService,
+    private firebaseService: FirebaseService,
   ) { }
+
+  async createParkingSlot(path: string, body: CreateSlotDto) {
+    const parkData = body.data;
+    const { park_name, slots } = parkData;
+
+    const existingParks = await this.firebaseService.readRecord(path);
+
+    // check if park already exists
+    const parkKey = Object.keys(existingParks || {}).find(
+      key => existingParks[key].park_name === park_name,
+    );
+
+    if (parkKey) {
+      const existingSlots = existingParks[parkKey].slots || [];
+
+      // add new slots to existing park
+      const updatedSlots = [...existingSlots, ...slots];
+
+      await this.firebaseService.updateRecord(`${path}/${parkKey}`, {
+        slots: updatedSlots,
+      });
+
+      return {
+        message: `Cập nhật thêm ${slots.length} slot cho ${park_name}`,
+        parkId: parkKey,
+      };
+    } else {
+      // if park does not exist, create new park
+      const newPark = await this.firebaseService.createRecord(path, parkData);
+
+      return {
+        message: `Tạo mới park ${park_name} thành công`,
+        data: newPark,
+      };
+    }
+  }
+
+
+  async getAllParkingSlots(pathName: string) {
+    return this.firebaseService.readRecord(pathName);
+  }
 
   async getDoctors() {
     const cacheKey = 'all_doctors';

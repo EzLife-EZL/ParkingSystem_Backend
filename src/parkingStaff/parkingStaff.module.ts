@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
-import { AppointmentService } from './appointment.service';
-import { AppointmentController } from './appointment.controller';
+import { ParkingStaffService } from './parkingStaff.service';
+import { AppointmentController } from './parkingStaff.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Appointment, AppointmentSchema } from 'src/schemas/Appointment.schema';
 import { User, UserSchema } from 'src/schemas/user.schema';
 import { Doctor, DoctorSchema } from 'src/schemas/doctor.schema';
 import { CacheService } from 'src/cache.service';
 import { Review, ReviewSchema } from 'src/schemas/review.schema';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { Review, ReviewSchema } from 'src/schemas/review.schema';
     ]),
   ],
   controllers: [AppointmentController],
-  providers: [AppointmentService, CacheService],
+  providers: [ParkingStaffService, CacheService, FirebaseService],
 })
-export class AppointmentModule { }
+export class parkingStaffModule { }

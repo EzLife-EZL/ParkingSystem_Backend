@@ -6,8 +6,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
-import { DoctorModule } from './doctor/doctor.module';
-import { AppointmentModule } from './appointment/appointment.module';
+import { ManagerModule } from './manager/manager.module';
+import { parkingStaffModule } from './parkingStaff/parkingStaff.module';
 import { SpecialtyModule } from './specialty/specialty.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { FirebaseModule } from './firebase/firebase.module';
@@ -48,8 +48,8 @@ import { UserModule } from './user/user.module';
     }),
     AdminModule,
     AuthModule,
-    DoctorModule,
-    AppointmentModule,
+    ManagerModule,
+    parkingStaffModule,
     SpecialtyModule,
     CloudinaryModule,
     FirebaseModule,
