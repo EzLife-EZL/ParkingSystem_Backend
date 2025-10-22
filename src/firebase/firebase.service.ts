@@ -13,7 +13,7 @@ export class FirebaseService {
 
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccountPath),
-                databaseURL: 'https://hellodoc-8ddb5-default-rtdb.firebaseio.com'
+                databaseURL: 'https://parkingsystem-a3839-default-rtdb.firebaseio.com'
             });
 
             this.logger.log('Firebase initialized');
