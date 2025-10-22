@@ -14,9 +14,6 @@ class SlotDto {
     isBooked: boolean;
 
     @IsString()
-    slotId: string;
-
-    @IsString()
     slotName: string;
 
     @IsString()
@@ -27,6 +24,9 @@ class SlotDto {
 }
 
 class SlotDataDto {
+    @IsString()
+    address: string;
+
     @IsString()
     park_name: string;
 

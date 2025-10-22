@@ -1,48 +1,41 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { FirebaseService } from 'src/firebase/firebase.service';
 import { Report } from 'src/schemas/report.schema';
 
 @Injectable()
 export class ReportService {
     constructor(
         @InjectModel(Report.name) private reportModel: Model<Report>,
+        private firebaseService: FirebaseService
     ) { }
 
     async createReport(data: {
-        reporter: string;
-        reporterModel: 'User' | 'Doctor';
+        bookingId: string;
         content: string;
-        type: 'Người dùng' | 'Bác sĩ' | 'Ứng dụng' | 'Bài viết';
-        reportedId: string;
-        postId?: string
+        createdAt: string;
+        slotId: string;
+        status: 'opened' | 'closed';
+        title: string;
+        userId: string;
     }) {
-        return this.reportModel.create({
-            reporter: data.reporter,
-            reporterModel: data.reporterModel,
-            content: data.content,
-            type: data.type,
-            reportedId: data.reportedId,
-            postId: data.postId,
-        });
+        return this.firebaseService.createRecord('reports', data);
     }
 
     async getAllReports() {
-        return this.reportModel
-            .find()
-            .populate('reporter')
-            .sort({ createdAt: -1 });
+        return this.firebaseService.readRecord('reports');
     }
 
     async updateStatus(id: string, status: 'opened' | 'closed') {
-        const report = await this.reportModel.findById(id);
+        const report = await this.firebaseService.readRecord(`reports/${id}`);
         if (!report) throw new NotFoundException('Report not found');
         report.status = status;
         return report.save();
     }
 
     async updateResponse(id: string, responseContent: string, responseTime: string) {
-        const report = await this.reportModel.findById(id);
+        const report = await this.firebaseService.readRecord(`reports/${id}`);
         if (!report) throw new NotFoundException('Report not found');
         report.responseContent = responseContent;
         report.responseTime = responseTime;
@@ -51,7 +44,7 @@ export class ReportService {
     }
 
     async deleteReport(id: string) {
-        const report = await this.reportModel.findByIdAndDelete(id);
+        const report = await this.firebaseService.deleteRecord(`reports/${id}`);
         if (!report) throw new NotFoundException('Report not found');
         return { message: 'Deleted successfully' };
     }

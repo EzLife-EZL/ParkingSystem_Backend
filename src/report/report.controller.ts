@@ -7,12 +7,13 @@ export class ReportController {
 
   @Post()
   async create(@Body() body: {
-    reporter: string;
-    reporterModel: 'User' | 'Doctor';
+    bookingId: string;
     content: string;
-    type: 'Người dùng' | 'Bác sĩ' | 'Ứng dụng' | 'Bài viết';
-    reportedId: string;
-    postId?: string
+    createdAt: string;
+    slotId: string;
+    status: 'opened' | 'closed';
+    title: string;
+    userId: string;
   }) {
     return this.reportService.createReport(body);
   }

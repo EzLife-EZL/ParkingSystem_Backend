@@ -5,8 +5,6 @@ import {
   Post,
   Get,
   Put,
-  Patch,
-  UploadedFiles,
 } from '@nestjs/common';
 import { ManagerService } from './manager.service';
 import { Model } from 'mongoose';
@@ -33,38 +31,8 @@ export class ManagerController {
     return this.managerService.getAllParkingSlots(pathName);
   }
 
-  @Put(':id/update-profile')
-  async updateProfile(
-    @Param('id') id: string,
-    @UploadedFiles() files: { license?: Express.Multer.File[], image?: Express.Multer.File[], frontCccd?: Express.Multer.File[], backCccd?: Express.Multer.File[] },
-    @Body() updateData: any
-  ) {
-    if (files?.license?.[0]) {
-      updateData.license = files.license[0];
-    }
-
-    if (files?.image?.[0]) {
-      updateData.image = files.image[0];
-    }
-
-    if (files?.frontCccd?.[0]) {
-      updateData.frontCccd = files.frontCccd[0];
-    }
-
-    if (files?.backCccd?.[0]) {
-      updateData.backCccd = files.backCccd[0];
-    }
-    return this.managerService.updateDoctorProfile(id, updateData);
+  @Get('get-park-by-id/:parkId')
+  async getParkById(@Param('parkId') parkId: string) {
+    return this.managerService.getParkById(parkId);
   }
-
-  @Get('doctors')
-  async getVerifiedDoctors() {
-    return this.managerService.getVerifiedDoctors();
-  }
-
-  @Put(':id/fcm-token')
-  async updateFcmToken(@Param('id') id: string, @Body('token') token: string) {
-    return this.managerService.updateFcmToken(id, token);
-  }
-
 }

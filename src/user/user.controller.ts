@@ -27,5 +27,17 @@ export class UserController {
     return this.userService.getBookingHistory(userId);
   }
 
+  @Get('booking/details/api/:bookingId')
+  async getBookingDetails(@Param('bookingId') bookingId: string) {
+    return this.userService.getBookingDetails(bookingId);
+  }
+
+  @Post('cancel-reservation/:bookingId')
+  async cancelReservation(@Param('bookingId') bookingId: string) {
+    return this.userService.cancelReservation(bookingId);
+  }
+
+
+
 
 }

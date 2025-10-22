@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/schemas/user.schema';
 import { Doctor, DoctorSchema } from 'src/schemas/doctor.schema';
 import { Report, ReportSchema } from 'src/schemas/report.schema';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Module({
   imports: [
@@ -15,6 +16,6 @@ import { Report, ReportSchema } from 'src/schemas/report.schema';
     ]),
   ],
   controllers: [ReportController],
-  providers: [ReportService],
+  providers: [ReportService, FirebaseService],
 })
 export class ReportModule { }
