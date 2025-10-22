@@ -61,9 +61,38 @@ export class ManagerService {
     }
   }
 
-  async getAllParkingSlots(pathName: string) {
-    return this.firebaseService.readRecord(pathName);
+  // Service
+  async getAllParkingSlots(pathName: string) { 
+    const data = await this.firebaseService.readRecord(pathName);
+    
+    if (!data || typeof data !== 'object') {
+      return [];
+    }
+
+    // Chuyển object thành array với format mong muốn
+    const result = Object.entries(data).map(([parkId, parkData]: [string, any]) => {
+      return {
+        parkId: parkId,
+        parkName: parkData.park_name || '',
+        address: parkData.address || '',
+        price: parkData.price || 0,
+        typeVehicle: parkData.type_vehicle || '',
+        slots: parkData.slots ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
+          return {
+            slotId: slotId,
+            posX: slotData.pos_x || 0,
+            posY: slotData.pos_y || 0,
+            status: slotData.status || 'AVAILABLE',
+            spotNumber: slotData.spot_number || '',
+            ...slotData // Giữ lại các field khác nếu có
+          };
+        }) : []
+      };
+    });
+
+    return result;
   }
+
 
   async getParkById(parkId: string) {
     return this.firebaseService.readRecord(`park/${parkId}`);
