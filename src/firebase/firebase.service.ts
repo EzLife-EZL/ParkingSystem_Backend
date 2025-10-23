@@ -5,6 +5,7 @@ import * as path from 'path';
 @Injectable()
 export class FirebaseService {
     private logger = new Logger(FirebaseService.name);
+    private firebaseAuth: admin.auth.Auth;
 
     constructor() {
         // Kiểm tra xem Firebase đã khởi tạo chưa
@@ -18,6 +19,7 @@ export class FirebaseService {
 
             this.logger.log('Firebase initialized');
         } else {
+            this.firebaseAuth = admin.auth();
             this.logger.log('Firebase already initialized, using existing instance');
         }
     }

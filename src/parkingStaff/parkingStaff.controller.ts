@@ -28,5 +28,11 @@ export class AppointmentController {
     return await this.parkingStaffService.confirmReservation(reservationId);
   }
 
+  // // xác nhận nhận xe đã rời bãi
+  // @Put('confirm-car-departure/:reservationId')
+  // async confirmCarDeparture(@Param('reservationId') reservationId: string) {
+  //   return await this.parkingStaffService.confirmCarDeparture(reservationId);
+  // }
+
 
 }
