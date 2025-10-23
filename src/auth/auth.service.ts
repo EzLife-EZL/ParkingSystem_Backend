@@ -7,14 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SignupDto } from '../dtos/signup.dto';
-import { User } from '../schemas/user.schema';
-import { Model } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
-import * as bcrypt from 'bcrypt';
-import { loginDto } from '../dtos/login.dto';
 import { JwtService } from '@nestjs/jwt';
-import { Admin } from 'src/schemas/admin.schema';
-import { Doctor } from 'src/schemas/doctor.schema';
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from 'src/cache.service';
 import * as nodemailer from 'nodemailer';
@@ -24,6 +17,7 @@ import { LoginGoogleDto } from 'src/dtos/loginGoogle.dto';
 import { OAuth2Client } from 'google-auth-library';
 
 import * as admin from 'firebase-admin';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 @Injectable()
@@ -32,7 +26,7 @@ export class AuthService {
   constructor(
     private configService: ConfigService,
     private jwtService: JwtService,
-    private cacheService: CacheService,
+    private firebaseService: FirebaseService,
   ) {
     this.firebaseAuth = admin.auth();
   }
@@ -40,7 +34,7 @@ export class AuthService {
   async signUp(signUpData: SignupDto) {
     const { email, password, name, phone } = signUpData;
     try {
-      // Kiểm tra email đã tồn tại chưa
+      // check if email already exists
       try {
         await this.firebaseAuth.getUserByEmail(email);
         throw new UnauthorizedException('Email đã được sử dụng');
@@ -48,7 +42,7 @@ export class AuthService {
         if (error.code !== 'auth/user-not-found') throw error;
       }
 
-      // Tạo user
+      // create user in firebase auth
       const user = await this.firebaseAuth.createUser({
         email,
         password,
@@ -64,13 +58,26 @@ export class AuthService {
         address: 'Chưa có địa chỉ',
       });
 
-      // Gửi link xác thực
+      // save to firestore
+      await this.firebaseService.createFirestoreRecord(`users/${user.uid}`, {
+        uid: user.uid,
+        email,
+        name,
+        phone: phone ? `+84${phone.replace(/^0/, '')}` : null,
+        role: 'Admin',
+        address: 'Chưa có địa chỉ',
+        isVerified: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // generate email verification link
       const verifyLink = await this.firebaseAuth.generateEmailVerificationLink(email);
 
       return {
         message: 'Đăng ký thành công',
         uid: user.uid,
-        verifyLink, // trong thực tế nên gửi qua email
+        verifyLink,
       };
     } catch (error) {
       throw new InternalServerErrorException(error.message);
