@@ -21,8 +21,10 @@ export class ManagerService {
     );
 
     if (parkKey) {
-      const existingSlots = existingParks[parkKey].slots || [];
-      const existingSlotNames = existingSlots.map((s: any) => s.slotName);
+      const existingSlotsData = await this.firebaseService.readRecord(`${path}/${parkKey}/slots`) || {};
+
+      const existingSlotNames = Object.values(existingSlotsData)
+        .map((s: any) => s.slotName);
 
       const duplicateSlots = slots.filter(s =>
         existingSlotNames.includes(s.slotName),
@@ -34,37 +36,53 @@ export class ManagerService {
         );
       }
 
-      // filter valid slots
-      const validNewSlots = slots.filter(
-        s => s && s.slotName && s.pos_X && s.pos_Y && typeof s.isBooked === 'boolean',
-      );
-
-      const validExistingSlots = existingSlots.filter(s => s && s.slotName);
-
-      const updatedSlots = [...validExistingSlots, ...validNewSlots];
-
-      // only update slots
-      await this.firebaseService.updateRecord(`${path}/${parkKey}`, {
-        slots: updatedSlots,
-      });
+      // ✅ Tạo slotId tự động bằng Firebase push()
+      const createdSlots: any[] = [];
+      for (const slot of slots) {
+        if (slot && slot.slotName && slot.pos_X && slot.pos_Y && typeof slot.isBooked === 'boolean') {
+          const newSlot = await this.firebaseService.createRecord(
+            `${path}/${parkKey}/slots`,
+            slot
+          );
+          createdSlots.push(newSlot);
+        }
+      }
 
       return {
-        message: `Đã thêm ${validNewSlots.length} slot mới vào ${park_name}.`,
+        message: `Đã thêm ${createdSlots.length} slot mới vào ${park_name}.`,
         parkId: parkKey,
+        newSlots: createdSlots,
       };
     } else {
-      const newPark = await this.firebaseService.createRecord(path, parkData);
+      // ✅ Nếu bãi chưa tồn tại → tạo bãi mới trước
+      const newPark = await this.firebaseService.createRecord(path, {
+        ...parkData,
+        slots: {},
+      });
+
+      // Sau đó thêm slot vào bãi vừa tạo
+      const createdSlots: any[] = [];
+      for (const slot of slots) {
+        const newSlot = await this.firebaseService.createRecord(
+          `${path}/${newPark.id}/slots`,
+          slot
+        );
+        createdSlots.push(newSlot);
+      }
+
       return {
-        message: `Tạo mới bãi xe ${park_name} thành công.`,
-        data: newPark,
+        message: `Tạo mới bãi xe ${park_name} thành công và thêm ${createdSlots.length} slot.`,
+        parkId: newPark.id,
+        newSlots: createdSlots,
       };
     }
   }
 
+
   // Service
-  async getAllParkingSlots(pathName: string) { 
+  async getAllParkingSlots(pathName: string) {
     const data = await this.firebaseService.readRecord(pathName);
-    
+
     if (!data || typeof data !== 'object') {
       return [];
     }
@@ -97,4 +115,24 @@ export class ManagerService {
   async getParkById(parkId: string) {
     return this.firebaseService.readRecord(`park/${parkId}`);
   }
+
+  async deleteParkById(parkId: string) {
+    return this.firebaseService.deleteRecord(`park/${parkId}`);
+  }
+
+  async updateParkById(parkId: string, body: any) {
+    return this.firebaseService.updateRecord(`park/${parkId}`, body);
+  }
+
+  async deleteSlotbyId(parkId: string, slotId: string) {
+    return this.firebaseService.deleteRecord(`park/${parkId}/slots/${slotId}`);
+  }
+
+  async updateSlotDetails(parkId: string, slotId: string, body: any) {
+    return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, body);
+  }
+
+
+
+
 }

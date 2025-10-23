@@ -52,7 +52,7 @@ export class AuthService {
 
       // Custom claims
       await this.firebaseAuth.setCustomUserClaims(user.uid, {
-        role: 'user',
+        role: 'User',
         name,
         phone,
         address: 'Chưa có địa chỉ',
@@ -64,9 +64,8 @@ export class AuthService {
         email,
         name,
         phone: phone ? `+84${phone.replace(/^0/, '')}` : null,
-        role: 'Admin',
+        role: 'User',
         address: 'Chưa có địa chỉ',
-        isVerified: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
