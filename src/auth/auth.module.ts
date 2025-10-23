@@ -6,23 +6,10 @@ import { User, UserSchema } from '../schemas/user.schema';
 import { Doctor, DoctorSchema } from 'src/schemas/doctor.schema';
 import { Admin, AdminSchema } from 'src/schemas/admin.schema';
 import { CacheService } from 'src/cache.service';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Module({
-  imports: [MongooseModule.forFeature([{
-    name: User.name,
-    schema: UserSchema,
-  },
-  {
-    name: Doctor.name,
-    schema: DoctorSchema,
-  },
-  {
-    name: Admin.name,
-    schema: AdminSchema,
-  }
-  ]),
-  ],
   controllers: [AuthController],
-  providers: [AuthService, CacheService],
+  providers: [AuthService, CacheService, FirebaseService],
 })
 export class AuthModule { }

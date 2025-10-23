@@ -6,6 +6,7 @@ import * as path from 'path';
 export class FirebaseService {
     private logger = new Logger(FirebaseService.name);
     private firebaseAuth: admin.auth.Auth;
+    private firestore: admin.firestore.Firestore;
 
     constructor() {
         // Kiểm tra xem Firebase đã khởi tạo chưa
@@ -19,11 +20,43 @@ export class FirebaseService {
 
             this.logger.log('Firebase initialized');
         } else {
-            this.firebaseAuth = admin.auth();
+
             this.logger.log('Firebase already initialized, using existing instance');
         }
+
+        this.firebaseAuth = admin.auth();
+        this.firestore = admin.firestore();
     }
 
+    //firestore methods
+
+    async createFirestoreRecord(path: string, data: any): Promise<any> {
+        const ref = this.firestore.doc(path);
+        await ref.set(data);
+        return { id: ref.id, ...data };
+    }
+
+    async readFirestoreRecord(path: string): Promise<any> {
+        const ref = this.firestore.doc(path);
+        const doc = await ref.get();
+        return doc.exists ? doc.data() : null;
+    }
+
+    async updateFirestoreRecord(path: string, data: any) {
+        const ref = this.firestore.doc(path);
+        await ref.update(data);
+        return { message: 'Firestore record updated successfully' };
+    }
+
+    async deleteFirestoreRecord(path: string) {
+        const ref = this.firestore.doc(path);
+        await ref.delete();
+        return { message: 'Firestore record deleted successfully' };
+    }
+
+
+
+    // Realtime Database methods
     async createRecord(path: string, data: any): Promise<any> {
         const ref = admin.database().ref(path);
         const newRef = ref.push(); // Firebase tự tạo ID

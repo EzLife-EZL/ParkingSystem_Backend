@@ -28,11 +28,17 @@ export class AppointmentController {
     return await this.parkingStaffService.confirmReservation(reservationId);
   }
 
-  // // xác nhận nhận xe đã rời bãi
-  // @Put('confirm-car-departure/:reservationId')
-  // async confirmCarDeparture(@Param('reservationId') reservationId: string) {
-  //   return await this.parkingStaffService.confirmCarDeparture(reservationId);
-  // }
+
+  @Put('update-slot-status/:parkId/:slotId')
+  async updateSlotStatus(
+    @Param('parkId') parkId: string,
+    @Param('slotId') slotId: string,
+    @Body('status') status: string,
+  ) {
+    return this.parkingStaffService.updateSlotStatus(parkId, slotId, status);
+  }
+
+
 
 
 }

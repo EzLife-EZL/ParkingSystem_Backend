@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CacheService } from 'src/cache.service';
-import { BookAppointmentDto } from 'src/dtos/appointment.dto';
-import { Appointment, AppointmentStatus, ExaminationMethod } from 'src/schemas/Appointment.schema';
+import { Appointment } from 'src/schemas/Appointment.schema';
 import { Doctor } from 'src/schemas/doctor.schema';
 import { User } from 'src/schemas/user.schema';
 import * as admin from 'firebase-admin';
@@ -13,11 +12,6 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 @Injectable()
 export class ParkingStaffService {
     constructor(
-        @InjectModel(Appointment.name) private appointmentModel: Model<Appointment>,
-        @InjectModel(User.name) private userModel: Model<User>,
-        @InjectModel(Doctor.name) private doctorModel: Model<Doctor>,
-        @InjectModel(Review.name) private reviewModel: Model<Review>,
-        private cacheService: CacheService,
         private firebaseService: FirebaseService,
     ) { }
 
@@ -43,6 +37,9 @@ export class ParkingStaffService {
 
     }
 
+    async updateSlotStatus(parkId: string, slotId: string, status: string) {
+        return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, { status });
+    }
 
 
 }
