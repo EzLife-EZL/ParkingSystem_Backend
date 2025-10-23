@@ -80,6 +80,7 @@ export class ManagerService {
         slots: parkData.slots ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
           return {
             slot_id: slotId,
+            slot_name: slotData.slot_name || '',
             pos_X: slotData.pos_x || 0,
             pos_Y: slotData.pos_y || 0,
             status: slotData.status || 'AVAILABLE',
@@ -117,6 +118,7 @@ export class ManagerService {
               pos_Y: slotData.pos_y || 0,
               status: slotData.status || 'AVAILABLE',
               spotNumber: slotData.spot_number || '',
+              slot_name: slotData.slot_name || '',
               ...slotData, // giữ lại field khác nếu có
             };
           })
