@@ -13,28 +13,34 @@ import { updateUserDto } from 'src/dtos/updateUser.dto';
 import { Model, isValidObjectId, Types } from 'mongoose';
 import { Doctor } from 'src/schemas/doctor.schema';
 import { JwtService } from '@nestjs/jwt';
-import { loginDto } from 'src/dtos/login.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import * as admin from 'firebase-admin';
 
 @Injectable()
 export class AdminService {
+  private firestore: admin.firestore.Firestore;
+  private usersCollection: FirebaseFirestore.CollectionReference;
+
   constructor(
     @InjectModel(User.name) private UserModel: Model<User>,
     @InjectModel(Admin.name) private AdminModel: Model<Admin>,
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private cloudinaryService: CloudinaryService,
     private jwtService: JwtService,
-  ) { }
+
+  ) {
+    this.firestore = admin.firestore(),
+      this.usersCollection = this.firestore.collection('users')
+  }
 
   async getUsers() {
     return await this.UserModel.find();
   }
 
   async getAllUsers() {
-    const users = await this.UserModel.find({ isDeleted: false });
-    const doctors = await this.DoctorModel.find({ isDeleted: false });
-
-    return { users, doctors };
+    const snapshot = await this.usersCollection.get();
+    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return users;
   }
 
   async getUserByID(id: string) {

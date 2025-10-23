@@ -6,6 +6,7 @@ import { User, UserSchema } from 'src/schemas/user.schema';
 import { Admin, AdminSchema } from 'src/schemas/admin.schema';
 import { Doctor, DoctorSchema } from 'src/schemas/doctor.schema';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Module({
 
@@ -25,6 +26,6 @@ import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
     ]),
   ],
   controllers: [AdminController],
-  providers: [AdminService],
+  providers: [AdminService, FirebaseService],
 })
 export class AdminModule { }
