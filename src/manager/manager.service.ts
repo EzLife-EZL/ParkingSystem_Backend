@@ -1,15 +1,22 @@
 import {
   Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Express } from 'express';
 import { CreateSlotDto } from './dto/createSlot.dto';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { SignupDto } from 'src/dtos/signup.dto';
+import * as admin from 'firebase-admin';
 
 @Injectable()
 export class ManagerService {
+  private firebaseAuth: admin.auth.Auth
   constructor(
     private firebaseService: FirebaseService,
-  ) { }
+  ) {
+    this.firebaseAuth = admin.auth();
+  }
 
   async createParkingSlot(path: string, body: CreateSlotDto) {
     const parkData = body.data;
@@ -36,7 +43,7 @@ export class ManagerService {
         );
       }
 
-      // ✅ Tạo slotId tự động bằng Firebase push()
+      // Tạo slotId tự động bằng Firebase push()
       const createdSlots: any[] = [];
       for (const slot of slots) {
         if (slot && slot.slotName && slot.pos_X && slot.pos_Y && typeof slot.isBooked === 'boolean') {
@@ -54,7 +61,7 @@ export class ManagerService {
         newSlots: createdSlots,
       };
     } else {
-      // ✅ Nếu bãi chưa tồn tại → tạo bãi mới trước
+      // Nếu bãi chưa tồn tại → tạo bãi mới trước
       const newPark = await this.firebaseService.createRecord(path, {
         ...parkData,
         slots: {},
@@ -111,7 +118,6 @@ export class ManagerService {
     return result;
   }
 
-
   async getParkById(parkId: string) {
     return this.firebaseService.readRecord(`park/${parkId}`);
   }
@@ -130,6 +136,62 @@ export class ManagerService {
 
   async updateSlotDetails(parkId: string, slotId: string, body: any) {
     return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, body);
+  }
+
+  async createParkingStaff(body: SignupDto) {
+    return this.signUpAccoutForParkingStaff(body);
+  }
+
+  async signUpAccoutForParkingStaff(signUpData: SignupDto) {
+    const { email, password, name, phone } = signUpData;
+    try {
+      // check if email already exists
+      try {
+        await this.firebaseAuth.getUserByEmail(email);
+        throw new UnauthorizedException('Email đã được sử dụng');
+      } catch (error) {
+        if (error.code !== 'auth/user-not-found') throw error;
+      }
+
+      // create user in firebase auth
+      const user = await this.firebaseAuth.createUser({
+        email,
+        password,
+        displayName: name,
+        phoneNumber: phone ? `+84${phone.replace(/^0/, '')}` : undefined,
+      });
+
+      // Custom claims
+      await this.firebaseAuth.setCustomUserClaims(user.uid, {
+        role: 'ParkingStaff',
+        name,
+        phone,
+        address: 'Chưa có địa chỉ',
+      });
+
+      // save to firestore
+      await this.firebaseService.createFirestoreRecord(`users/${user.uid}`, {
+        uid: user.uid,
+        email,
+        name,
+        phone: phone ? `+84${phone.replace(/^0/, '')}` : null,
+        role: 'ParkingStaff',
+        address: 'Chưa có địa chỉ',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // generate email verification link
+      const verifyLink = await this.firebaseAuth.generateEmailVerificationLink(email);
+
+      return {
+        message: 'Đăng ký thành công',
+        uid: user.uid,
+        verifyLink,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
   }
 
 

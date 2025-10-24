@@ -1,6 +1,4 @@
 import {
-  BadRequestException,
-  Inject,
   Injectable,
   UnauthorizedException,
   InternalServerErrorException,
@@ -9,7 +7,6 @@ import {
 import { SignupDto } from '../dtos/signup.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { CacheService } from 'src/cache.service';
 import * as nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import e from 'express';
