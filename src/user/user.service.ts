@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { User } from '../schemas/user.schema';
 import { Doctor } from '../schemas/doctor.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -10,28 +9,27 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 @Injectable()
 export class UserService {
   constructor(
-    @InjectModel(User.name) private UserModel: Model<User>,
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private firebaseService: FirebaseService
   ) { }
 
-  async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
-    console.log(updateFcmDto.token);
-    if (updateFcmDto.userModel == 'User') {
-      return this.UserModel.findByIdAndUpdate(
-        userId,
-        { fcmToken: updateFcmDto.token },
-        { new: true }
-      );
-    } else if (updateFcmDto.userModel == 'Doctor') {
-      return this.DoctorModel.findByIdAndUpdate(
-        userId,
-        { fcmToken: updateFcmDto.token },
-        { new: true }
-      );
-    }
+  // async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
+  //   console.log(updateFcmDto.token);
+  //   if (updateFcmDto.userModel == 'User') {
+  //     return this.UserModel.findByIdAndUpdate(
+  //       userId,
+  //       { fcmToken: updateFcmDto.token },
+  //       { new: true }
+  //     );
+  //   } else if (updateFcmDto.userModel == 'Doctor') {
+  //     return this.DoctorModel.findByIdAndUpdate(
+  //       userId,
+  //       { fcmToken: updateFcmDto.token },
+  //       { new: true }
+  //     );
+  //   }
 
-  }
+  // }
 
   async makeReservation(reservation: ReservationDto) {
     const { parkId, slotId } = reservation;
