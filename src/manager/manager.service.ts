@@ -162,7 +162,7 @@ export class ManagerService {
     return this.firebaseService.updateRecord(`park/${parkId}`, body);
   }
 
-  async deleteSlotbyId(parkId: string, slotId: string) {
+  async deleteSlotById(parkId: string, slotId: string) {
     return this.firebaseService.deleteRecord(`park/${parkId}/slots/${slotId}`);
   }
 

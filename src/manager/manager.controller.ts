@@ -48,10 +48,10 @@ export class ManagerController {
   }
 
   @Delete('delete-slot-by-id/:parkId/:slotId')
-  async deleteSlotbyId(
+  async deleteSlotById(
     @Param('parkId') parkId: string,
     @Param('slotId') slotId: string,
   ) {
-    return this.managerService.deleteSlotbyId(parkId, slotId);
+    return this.managerService.deleteSlotById(parkId, slotId);
   }
 }
