@@ -11,10 +11,8 @@ import * as admin from 'firebase-admin';
 
 @Injectable()
 export class ManagerService {
-  private firebaseAuth: admin.auth.Auth
-  constructor(
-    private firebaseService: FirebaseService,
-  ) {
+  private firebaseAuth: admin.auth.Auth;
+  constructor(private firebaseService: FirebaseService) {
     this.firebaseAuth = admin.auth();
   }
 
@@ -24,32 +22,41 @@ export class ManagerService {
 
     const existingParks = await this.firebaseService.readRecord(path);
     const parkKey = Object.keys(existingParks || {}).find(
-      key => existingParks[key].park_name === park_name,
+      (key) => existingParks[key].park_name === park_name,
     );
 
     if (parkKey) {
-      const existingSlotsData = await this.firebaseService.readRecord(`${path}/${parkKey}/slots`) || {};
+      const existingSlotsData =
+        (await this.firebaseService.readRecord(`${path}/${parkKey}/slots`)) ||
+        {};
 
-      const existingSlotNames = Object.values(existingSlotsData)
-        .map((s: any) => s.slotName);
+      const existingSlotNames = Object.values(existingSlotsData).map(
+        (s: any) => s.slotName,
+      );
 
-      const duplicateSlots = slots.filter(s =>
+      const duplicateSlots = slots.filter((s) =>
         existingSlotNames.includes(s.slotName),
       );
 
       if (duplicateSlots.length > 0) {
         throw new Error(
-          `Các slot bị trùng tên: ${duplicateSlots.map(s => s.slotName).join(', ')}.`,
+          `Các slot bị trùng tên: ${duplicateSlots.map((s) => s.slotName).join(', ')}.`,
         );
       }
 
       // Tạo slotId tự động bằng Firebase push()
       const createdSlots: any[] = [];
       for (const slot of slots) {
-        if (slot && slot.slotName && slot.pos_X && slot.pos_Y && typeof slot.isBooked === 'boolean') {
+        if (
+          slot &&
+          slot.slotName &&
+          slot.pos_X &&
+          slot.pos_Y &&
+          typeof slot.isBooked === 'boolean'
+        ) {
           const newSlot = await this.firebaseService.createRecord(
             `${path}/${parkKey}/slots`,
-            slot
+            slot,
           );
           createdSlots.push(newSlot);
         }
@@ -72,7 +79,7 @@ export class ManagerService {
       for (const slot of slots) {
         const newSlot = await this.firebaseService.createRecord(
           `${path}/${newPark.id}/slots`,
-          slot
+          slot,
         );
         createdSlots.push(newSlot);
       }
@@ -85,7 +92,6 @@ export class ManagerService {
     }
   }
 
-
   // Service
   async getAllParkingSlots(pathName: string) {
     const data = await this.firebaseService.readRecord(pathName);
@@ -95,26 +101,32 @@ export class ManagerService {
     }
 
     // Chuyển object thành array với format mong muốn
-    const result = Object.entries(data).map(([parkId, parkData]: [string, any]) => {
-      return {
-        park_id: parkId,
-        park_name: parkData.park_name || '',
-        address: parkData.address || '',
-        price: parkData.price || 0,
-        type_vehicle: parkData.type_vehicle || '',
-        slots: parkData.slots ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
-          return {
-            slot_id: slotId,
-            slot_name: slotData.slot_name || '',
-            pos_X: slotData.pos_x || 0,
-            pos_Y: slotData.pos_y || 0,
-            status: slotData.status || 'AVAILABLE',
-            spotNumber: slotData.spot_number || '',
-            ...slotData // Giữ lại các field khác nếu có
-          };
-        }) : []
-      };
-    });
+    const result = Object.entries(data).map(
+      ([parkId, parkData]: [string, any]) => {
+        return {
+          park_id: parkId,
+          park_name: parkData.park_name || '',
+          address: parkData.address || '',
+          price: parkData.price || 0,
+          type_vehicle: parkData.type_vehicle || '',
+          slots: parkData.slots
+            ? Object.entries(parkData.slots).map(
+                ([slotId, slotData]: [string, any]) => {
+                  return {
+                    slot_id: slotId,
+                    slot_name: slotData.slot_name || '',
+                    pos_X: slotData.pos_x || 0,
+                    pos_Y: slotData.pos_y || 0,
+                    status: slotData.status || 'AVAILABLE',
+                    spotNumber: slotData.spot_number || '',
+                    ...slotData, // Giữ lại các field khác nếu có
+                  };
+                },
+              )
+            : [],
+        };
+      },
+    );
 
     return result;
   }
@@ -135,23 +147,25 @@ export class ManagerService {
       price: parkData.price || 0,
       type_vehicle: parkData.type_vehicle || '',
       slots: parkData.slots
-        ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
-            return {
-              slot_id: slotId,
-              pos_X: slotData.pos_x || 0,
-              pos_Y: slotData.pos_y || 0,
-              status: slotData.status || 'AVAILABLE',
-              spotNumber: slotData.spot_number || '',
-              slot_name: slotData.slot_name || '',
-              ...slotData, // giữ lại field khác nếu có
-            };
-          })
+        ? Object.entries(parkData.slots).map(
+            ([slotId, slotData]: [string, any]) => {
+              return {
+                slot_id: slotId,
+                pos_X: slotData.pos_x || 0,
+                pos_Y: slotData.pos_y || 0,
+                status: slotData.status || 'AVAILABLE',
+                spotNumber: slotData.spot_number || '',
+                slot_name: slotData.slot_name || '',
+                ...slotData, // giữ lại field khác nếu có
+              };
+            },
+          )
         : [],
     };
 
     return result;
   }
- async deleteParkById(parkId: string) {
+  async deleteParkById(parkId: string) {
     return this.firebaseService.deleteRecord(`park/${parkId}`);
   }
 
@@ -164,10 +178,11 @@ export class ManagerService {
   }
 
   async updateSlotDetails(parkId: string, slotId: string, body: any) {
-    return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, body);
+    return this.firebaseService.updateRecord(
+      `park/${parkId}/slots/${slotId}`,
+      body,
+    );
   }
-<<<<<<< HEAD
-=======
 
   async createParkingStaff(body: SignupDto) {
     return this.signUpAccoutForParkingStaff(body);
@@ -213,7 +228,8 @@ export class ManagerService {
       });
 
       // generate email verification link
-      const verifyLink = await this.firebaseAuth.generateEmailVerificationLink(email);
+      const verifyLink =
+        await this.firebaseAuth.generateEmailVerificationLink(email);
 
       return {
         message: 'Đăng ký thành công',
@@ -224,9 +240,4 @@ export class ManagerService {
       throw new InternalServerErrorException(error.message);
     }
   }
-
-
-
-
->>>>>>> 447234111a06c6bdcf1d901df225e29dcd9bbc7a
 }
