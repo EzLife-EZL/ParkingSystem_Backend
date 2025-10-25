@@ -21,14 +21,13 @@ export class AppointmentController {
     return await this.parkingStaffService.confirmReservation(reservationId);
   }
 
-
   @Put('update-slot-status/:parkId/:slotId')
   async updateSlotStatus(
     @Param('parkId') parkId: string,
     @Param('slotId') slotId: string,
-    @Body('status') status: string,
+    @Body('isBooked') isBooked: boolean,
   ) {
-    return this.parkingStaffService.updateSlotStatus(parkId, slotId, status);
+    return this.parkingStaffService.updateSlotStatus(parkId, slotId, isBooked);
   }
 
 

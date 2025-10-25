@@ -1,16 +1,11 @@
 import {
   Body,
   Controller,
-  Param,
+  Delete,
   Get,
+  Param,
   Post,
   Put,
-  UseGuards,
-  Patch,
-  Delete,
-  UseInterceptors,
-  UploadedFile,
-  BadRequestException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { SignupDto } from 'src/dtos/signup.dto';
@@ -29,11 +24,6 @@ export class AdminController {
     return this.adminService.getAllUsers();
   }
 
-  @Get('doctors')
-  async getDoctors() {
-    return this.adminService.getDoctors();
-  }
-
   @Post('postadmin')
   async postAdmin(@Body() signUpData: SignupDto) {
     return this.adminService.postAdmin(signUpData);
@@ -47,5 +37,25 @@ export class AdminController {
     return {
       accessToken,
     };
+  }
+
+  @Post('create-admin')
+  async createAdmin(@Body() signUpData: SignupDto) {
+    return this.adminService.postAdmin(signUpData);
+  }
+
+  @Put('update-user-info/:id')
+  async updateUserInfo(
+    @Param('id') userId: string,
+    @Body('name') name: string,
+    @Body('phone') phone: string,
+    @Body('role') role: string,
+  ) {
+    return this.adminService.updateUserInfo(userId, name, phone, role);
+  }
+
+  @Delete('delete-user/:id')
+  async deleteUser(@Param('id') userId: string) {
+    return this.adminService.deleteUser(userId);
   }
 }

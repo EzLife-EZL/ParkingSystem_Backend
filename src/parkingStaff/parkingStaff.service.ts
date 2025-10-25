@@ -29,8 +29,8 @@ export class ParkingStaffService {
 
     }
 
-    async updateSlotStatus(parkId: string, slotId: string, status: string) {
-        return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, { status });
+    async updateSlotStatus(parkId: string, slotId: string, isBooked: boolean) {
+        return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, { isBooked });
     }
 
 
