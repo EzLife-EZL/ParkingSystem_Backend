@@ -33,5 +33,11 @@ export class ParkingStaffService {
         return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, { isBooked });
     }
 
+    async getTotalBookedSlots(parkId: string) {
+        const slotsData = await this.firebaseService.readRecord(`park/${parkId}/slots`);
+        if (!slotsData) return 0;
+        return Object.values(slotsData).filter((slot: any) => slot.isBooked).length;
+    }
+
 
 }
