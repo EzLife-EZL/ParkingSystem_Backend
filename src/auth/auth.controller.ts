@@ -1,7 +1,6 @@
 import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from '../dtos/signup.dto';
-import { loginDto } from '../dtos/login.dto';
 import { LoginGoogleDto } from 'src/dtos/loginGoogle.dto';
 
 @Controller('auth')
@@ -41,7 +40,6 @@ export class AuthController {
 
   //   const otp = await this.authService.requestOTP(email);
 
-  //   // Với mục đích demo, trả về otp (sản phẩm thật thì không trả)
   //   return { message: 'OTP đã được gửi đến email', otp };
   // }
 
@@ -53,7 +51,6 @@ export class AuthController {
 
   //   const otp = await this.authService.requestOtpSignup(email);
 
-  //   // Với mục đích demo, trả về otp (sản phẩm thật thì không trả)
   //   return { message: 'OTP đã được gửi đến email', otp };
   // }
 

@@ -1,5 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { User } from '../schemas/user.schema';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Doctor } from '../schemas/doctor.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -10,73 +13,78 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 @Injectable()
 export class UserService {
   constructor(
-    @InjectModel(User.name) private UserModel: Model<User>,
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
-    private firebaseService: FirebaseService
-  ) { }
+    private firebaseService: FirebaseService,
+  ) {}
 
-  async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
-    console.log(updateFcmDto.token);
-    if (updateFcmDto.userModel == 'User') {
-      return this.UserModel.findByIdAndUpdate(
-        userId,
-        { fcmToken: updateFcmDto.token },
-        { new: true }
-      );
-    } else if (updateFcmDto.userModel == 'Doctor') {
-      return this.DoctorModel.findByIdAndUpdate(
-        userId,
-        { fcmToken: updateFcmDto.token },
-        { new: true }
-      );
-    }
+  // async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
+  //   console.log(updateFcmDto.token);
+  //   if (updateFcmDto.userModel == 'User') {
+  //     return this.UserModel.findByIdAndUpdate(
+  //       userId,
+  //       { fcmToken: updateFcmDto.token },
+  //       { new: true }
+  //     );
+  //   } else if (updateFcmDto.userModel == 'Doctor') {
+  //     return this.DoctorModel.findByIdAndUpdate(
+  //       userId,
+  //       { fcmToken: updateFcmDto.token },
+  //       { new: true }
+  //     );
+  //   }
 
-  }
+  // }
+
+  // src/user/user.service.ts
 
   async makeReservation(reservation: ReservationDto) {
     const { parkId, slotId } = reservation;
-
     const slotPath = `park/${parkId}/slots/${slotId}`;
 
-    // 1. Get slot info
     const parkingSlot = await this.firebaseService.readRecord(slotPath);
-    if (!parkingSlot) {
-      throw new NotFoundException('Parking slot not found');
-    }
-
-    // 2. Check slot status
-    if (parkingSlot.isBooked) {
+    if (!parkingSlot) throw new NotFoundException('Parking slot not found');
+    if (parkingSlot.isBooked)
       throw new BadRequestException('Parking slot is already booked');
-    }
 
-    // 3. Update slot status
+    // 1) Cập nhật slot
     await this.firebaseService.updateRecord(slotPath, {
       ...parkingSlot,
       isBooked: true,
     });
 
-    // 4. Create reservation record - remove undefined values
-    const reservationData = {
+    // 2) Tạo booking, gán default để tránh undefined
+    const raw = {
       parkId: reservation.parkId,
       slotId: reservation.slotId,
       userId: reservation.userId,
       startTime: reservation.startTime,
       endTime: reservation.endTime,
-      status: reservation.status,
-      paymentMethod: reservation.paymentMethod,
-      statusPayment: reservation.statusPayment,
-      numberPlate: reservation.numberPlate,
+
+      // 🔴 Các field hay bị undefined -> set default
+      status: reservation.status ?? 'pending',
+      paymentMethod: reservation.paymentMethod ?? 'cash',
+      statusPayment: reservation.statusPayment ?? 'unpaid',
+      numberPlate: reservation.numberPlate ?? '',
+
+      // info từ slot
       pos_X: parkingSlot.pos_X,
       pos_Y: parkingSlot.pos_Y,
       slotName: parkingSlot.slotName,
-      // Only add qrCode if it's defined
+
+      // chỉ thêm nếu có
       ...(reservation.qrCode !== undefined && { qrCode: reservation.qrCode }),
+
       createdAt: new Date().toISOString(),
     };
 
+    // 3) Loại bỏ mọi key = undefined
+    const reservationData = Object.fromEntries(
+      Object.entries(raw).filter(([, v]) => v !== undefined),
+    );
+
     const reservationRecord = await this.firebaseService.createRecord(
       'bookings',
-      reservationData
+      reservationData,
     );
 
     return {
@@ -86,7 +94,6 @@ export class UserService {
   }
 
   async getAvailableParkingSlots(parkId: string) {
-
     const parkData = await this.firebaseService.readRecord(`park/${parkId}`);
 
     if (!parkData || !parkData.slots) {
@@ -100,7 +107,9 @@ export class UserService {
     // filter available slots
     const availableSlots = slots.filter((slot: any) => slot.isBooked === false);
 
-    console.log(`Found ${availableSlots.length} available slots in park ${parkId}`);
+    console.log(
+      `Found ${availableSlots.length} available slots in park ${parkId}`,
+    );
     return availableSlots;
   }
 
@@ -110,23 +119,28 @@ export class UserService {
 
     const reservations = Object.values(data);
     const userReservations = reservations.filter(
-      (r: any) => r.userId === userId
+      (r: any) => r.userId === userId,
     );
 
     userReservations.sort(
-      (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a: any, b: any) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
     return userReservations;
   }
 
   async getBookingDetails(bookingId: string) {
-    const booking = await this.firebaseService.readRecord(`bookings/${bookingId}`);
+    const booking = await this.firebaseService.readRecord(
+      `bookings/${bookingId}`,
+    );
     return booking;
   }
 
   async cancelReservation(bookingId: string) {
-    const booking = await this.firebaseService.readRecord(`bookings/${bookingId}`);
+    const booking = await this.firebaseService.readRecord(
+      `bookings/${bookingId}`,
+    );
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
@@ -141,4 +155,3 @@ export class UserService {
     return { message: 'Reservation canceled successfully' };
   }
 }
-

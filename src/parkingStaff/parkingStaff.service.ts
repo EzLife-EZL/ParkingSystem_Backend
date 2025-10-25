@@ -1,12 +1,4 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { CacheService } from 'src/cache.service';
-import { Appointment } from 'src/schemas/Appointment.schema';
-import { Doctor } from 'src/schemas/doctor.schema';
-import { User } from 'src/schemas/user.schema';
-import * as admin from 'firebase-admin';
-import { Review } from 'src/schemas/review.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
@@ -37,8 +29,8 @@ export class ParkingStaffService {
 
     }
 
-    async updateSlotStatus(parkId: string, slotId: string, status: string) {
-        return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, { status });
+    async updateSlotStatus(parkId: string, slotId: string, isBooked: boolean) {
+        return this.firebaseService.updateRecord(`park/${parkId}/slots/${slotId}`, { isBooked });
     }
 
 

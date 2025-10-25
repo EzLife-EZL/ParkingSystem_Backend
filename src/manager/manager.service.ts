@@ -1,11 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+} from '@nestjs/common';
 import { Express } from 'express';
 import { CreateSlotDto } from './dto/createSlot.dto';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { SignupDto } from 'src/dtos/signup.dto';
+import * as admin from 'firebase-admin';
 
 @Injectable()
 export class ManagerService {
-  constructor(private firebaseService: FirebaseService) {}
+  constructor(
+    private firebaseService: FirebaseService,
+  ) { }
 
   async createParkingSlot(path: string, body: CreateSlotDto) {
     const parkData = body.data;
@@ -35,7 +41,7 @@ export class ManagerService {
         );
       }
 
-      // ✅ Tạo slotId tự động bằng Firebase push()
+      // Tạo slotId tự động bằng Firebase push()
       const createdSlots: any[] = [];
       for (const slot of slots) {
         if (
@@ -59,7 +65,7 @@ export class ManagerService {
         newSlots: createdSlots,
       };
     } else {
-      // ✅ Nếu bãi chưa tồn tại → tạo bãi mới trước
+      // Nếu bãi chưa tồn tại → tạo bãi mới trước
       const newPark = await this.firebaseService.createRecord(path, {
         ...parkData,
         slots: {},
@@ -92,31 +98,26 @@ export class ManagerService {
     }
 
     // Chuyển object thành array với format mong muốn
-    const result = Object.entries(data).map(
-      ([parkId, parkData]: [string, any]) => {
-        return {
-          park_id: parkId,
-          park_name: parkData.park_name || '',
-          address: parkData.address || '',
-          price: parkData.price || 0,
-          type_vehicle: parkData.type_vehicle || '',
-          slots: parkData.slots
-            ? Object.entries(parkData.slots).map(
-                ([slotId, slotData]: [string, any]) => {
-                  return {
-                    slot_id: slotId,
-                    pos_X: slotData.pos_x || 0,
-                    pos_Y: slotData.pos_y || 0,
-                    status: slotData.status || 'AVAILABLE',
-                    spotNumber: slotData.spot_number || '',
-                    ...slotData, // Giữ lại các field khác nếu có
-                  };
-                },
-              )
-            : [],
-        };
-      },
-    );
+    const result = Object.entries(data).map(([parkId, parkData]: [string, any]) => {
+      return {
+        park_id: parkId,
+        park_name: parkData.park_name || '',
+        address: parkData.address || '',
+        price: parkData.price || 0,
+        type_vehicle: parkData.type_vehicle || '',
+        slots: parkData.slots ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
+          return {
+            slot_id: slotId,
+            slot_name: slotData.slot_name || '',
+            pos_X: slotData.pos_x || 0,
+            pos_Y: slotData.pos_y || 0,
+            status: slotData.status || 'AVAILABLE',
+            spotNumber: slotData.spot_number || '',
+            ...slotData // Giữ lại các field khác nếu có
+          };
+        }) : []
+      };
+    });
 
     return result;
   }
@@ -137,18 +138,17 @@ export class ManagerService {
       price: parkData.price || 0,
       type_vehicle: parkData.type_vehicle || '',
       slots: parkData.slots
-        ? Object.entries(parkData.slots).map(
-            ([slotId, slotData]: [string, any]) => {
-              return {
-                slot_id: slotId,
-                pos_X: slotData.pos_x || 0,
-                pos_Y: slotData.pos_y || 0,
-                status: slotData.status || 'AVAILABLE',
-                spotNumber: slotData.spot_number || '',
-                ...slotData, // giữ lại field khác nếu có
-              };
-            },
-          )
+        ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
+            return {
+              slot_id: slotId,
+              pos_X: slotData.pos_x || 0,
+              pos_Y: slotData.pos_y || 0,
+              status: slotData.status || 'AVAILABLE',
+              spotNumber: slotData.spot_number || '',
+              slot_name: slotData.slot_name || '',
+              ...slotData, // giữ lại field khác nếu có
+            };
+          })
         : [],
     };
 

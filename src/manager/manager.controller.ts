@@ -8,18 +8,15 @@ import {
   Delete,
 } from '@nestjs/common';
 import { ManagerService } from './manager.service';
-import { Model } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
-import { User } from 'src/schemas/user.schema';
 
 import { Express } from 'express';
 import { CreateSlotDto } from './dto/createSlot.dto';
+import { SignupDto } from 'src/dtos/signup.dto';
 
 @Controller('manager')
 export class ManagerController {
   constructor(
     private readonly managerService: ManagerService,
-    @InjectModel(User.name) private userModel: Model<User>,
   ) { }
 
   @Post('create-parking-slot')
@@ -53,5 +50,10 @@ export class ManagerController {
     @Param('slotId') slotId: string,
   ) {
     return this.managerService.deleteSlotById(parkId, slotId);
+  }
+
+  @Post('parking-staff')
+  async createParkingStaff(@Body() body: SignupDto) {
+    return this.managerService.createParkingStaff(body);
   }
 }
