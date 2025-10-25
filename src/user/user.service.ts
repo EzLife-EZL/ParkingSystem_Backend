@@ -15,7 +15,7 @@ export class UserService {
   constructor(
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private firebaseService: FirebaseService,
-  ) {}
+  ) { }
 
   // async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
   //   console.log(updateFcmDto.token);
@@ -34,8 +34,6 @@ export class UserService {
   //   }
 
   // }
-
-  // src/user/user.service.ts
 
   async makeReservation(reservation: ReservationDto) {
     const { parkId, slotId } = reservation;
@@ -60,7 +58,7 @@ export class UserService {
       startTime: reservation.startTime,
       endTime: reservation.endTime,
 
-      // 🔴 Các field hay bị undefined -> set default
+      // Các field hay bị undefined -> set default
       status: reservation.status ?? 'pending',
       paymentMethod: reservation.paymentMethod ?? 'cash',
       statusPayment: reservation.statusPayment ?? 'unpaid',

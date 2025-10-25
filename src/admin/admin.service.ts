@@ -66,7 +66,7 @@ export class AdminService {
       });
 
       // save to firestore
-      await this.firebaseService.createFirestoreRecord(`users/${user.uid}`, {
+      await this.firebaseService.createFirestoreRecord(`admin/${user.uid}`, {
         uid: user.uid,
         email,
         name,
@@ -175,6 +175,62 @@ export class AdminService {
       await this.firebaseService.deleteFirestoreRecord(`users/${userId}`);
       return {
         message: 'Xoa người dùng thanh cong',
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async createParkingStaff(signUpData: SignupDto) {
+    return this.signUpAccoutForParkingStaff(signUpData);
+  }
+
+  async signUpAccoutForParkingStaff(signUpData: SignupDto) {
+    const { email, password, name, phone } = signUpData;
+    try {
+      // check if email already exists
+      try {
+        await this.firebaseAuth.getUserByEmail(email);
+        throw new UnauthorizedException('Email đã được sử dụng');
+      } catch (error) {
+        if (error.code !== 'auth/user-not-found') throw error;
+      }
+
+      // create user in firebase auth
+      const user = await this.firebaseAuth.createUser({
+        email,
+        password,
+        displayName: name,
+        phoneNumber: phone ? `+84${phone.replace(/^0/, '')}` : undefined,
+      });
+
+      // Custom claims
+      await this.firebaseAuth.setCustomUserClaims(user.uid, {
+        role: 'Staff',
+        name,
+        phone,
+        address: 'Chưa có địa chỉ',
+      });
+
+      // save to firestore
+      await this.firebaseService.createFirestoreRecord(`staff/${user.uid}`, {
+        uid: user.uid,
+        email,
+        name,
+        phone: phone ? `+84${phone.replace(/^0/, '')}` : null,
+        role: 'Staff',
+        address: 'Chưa có địa chỉ',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // generate email verification link
+      const verifyLink = await this.firebaseAuth.generateEmailVerificationLink(email);
+
+      return {
+        message: 'Đăng ký thành công',
+        uid: user.uid,
+        verifyLink,
       };
     } catch (error) {
       throw new InternalServerErrorException(error.message);

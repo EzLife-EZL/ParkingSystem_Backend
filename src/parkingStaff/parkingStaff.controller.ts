@@ -30,7 +30,4 @@ export class AppointmentController {
     return this.parkingStaffService.updateSlotStatus(parkId, slotId, isBooked);
   }
 
-
-
-
 }

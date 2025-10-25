@@ -58,4 +58,9 @@ export class AdminController {
   async deleteUser(@Param('id') userId: string) {
     return this.adminService.deleteUser(userId);
   }
+
+  @Post('create-parking-staff')
+  async createParkingStaff(@Body() signUpData: SignupDto) {
+    return this.adminService.createParkingStaff(signUpData);
+  }
 }
