@@ -141,9 +141,11 @@ export class UserService {
     const booking = await this.firebaseService.readRecord(
       `bookings/${bookingId}`,
     );
+
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+
     const slotPath = `park/${booking.parkId}/slots/${booking.slotId}`;
     await this.firebaseService.updateRecord(slotPath, {
       pos_X: booking.pos_X,
@@ -151,7 +153,18 @@ export class UserService {
       slotName: booking.slotName,
       isBooked: false,
     });
-    await this.firebaseService.deleteRecord(`bookings/${bookingId}`);
-    return { message: 'Reservation canceled successfully' };
+
+    const bookingPath = `bookings/${bookingId}`;
+    await this.firebaseService.updateRecord(bookingPath, {
+      status: 'cancelled',
+      canceledAt: new Date().toISOString(),
+    });
+
+    const updatedBooking = await this.firebaseService.readRecord(bookingPath);
+
+    return {
+      message: 'Reservation cancelled successfully',
+      booking: updatedBooking,
+    };
   }
 }
