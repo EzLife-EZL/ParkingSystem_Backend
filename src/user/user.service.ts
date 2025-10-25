@@ -60,7 +60,7 @@ export class UserService {
       startTime: reservation.startTime,
       endTime: reservation.endTime,
 
-      // 🔴 Các field hay bị undefined -> set default
+      // Các field hay bị undefined -> set default
       status: reservation.status ?? 'pending',
       paymentMethod: reservation.paymentMethod ?? 'cash',
       statusPayment: reservation.statusPayment ?? 'unpaid',
@@ -116,8 +116,13 @@ export class UserService {
   async getBookingHistory(userId: string) {
     const data = await this.firebaseService.readRecord('bookings');
     if (!data) return [];
+    const reservations = Object.entries(data).map(
+      ([id, value]: [string, any]) => ({
+        id,
+        ...value,
+      }),
+    );
 
-    const reservations = Object.values(data);
     const userReservations = reservations.filter(
       (r: any) => r.userId === userId,
     );
@@ -127,14 +132,46 @@ export class UserService {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
-    return userReservations;
+    const enriched = await Promise.all(
+      userReservations.map(async (booking: any) => {
+        const park = await this.firebaseService.readRecord(
+          `park/${booking.parkId}`,
+        );
+
+        return {
+          ...booking,
+          parkName: booking.parkName ?? park?.park_name ?? null,
+          address: booking.address ?? park?.address ?? null,
+          type_vehicle: booking.type_vehicle ?? park?.type_vehicle ?? null,
+          price: booking.price ?? park?.price ?? null,
+        };
+      }),
+    );
+
+    return enriched;
   }
 
   async getBookingDetails(bookingId: string) {
-    const booking = await this.firebaseService.readRecord(
+    const booking: any = await this.firebaseService.readRecord(
       `bookings/${bookingId}`,
     );
-    return booking;
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const parkData = await this.firebaseService.readRecord(
+      `park/${booking.parkId}`,
+    );
+    const enriched = {
+      ...booking,
+      parkName: booking.parkName ?? parkData?.park_name ?? '',
+      address: booking.address ?? parkData?.address ?? '',
+      type_vehicle: booking.type_vehicle ?? parkData?.type_vehicle ?? '',
+      price: booking.price ?? parkData?.price ?? 0,
+    };
+
+    return enriched;
   }
 
   async cancelReservation(bookingId: string) {
@@ -145,6 +182,10 @@ export class UserService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+
+    const park = await this.firebaseService.readRecord(
+      `park/${booking.parkId}`,
+    );
 
     const slotPath = `park/${booking.parkId}/slots/${booking.slotId}`;
     await this.firebaseService.updateRecord(slotPath, {
@@ -163,7 +204,12 @@ export class UserService {
     const updatedBooking = await this.firebaseService.readRecord(bookingPath);
 
     return {
-      message: 'Reservation cancelled successfully',
+      id: bookingId,
+      ...booking,
+      parkName: booking.parkName ?? park?.park_name ?? null,
+      address: booking.address ?? park?.address ?? null,
+      type_vehicle: booking.type_vehicle ?? park?.type_vehicle ?? null,
+      price: booking.price ?? park?.price ?? null,
       booking: updatedBooking,
     };
   }
