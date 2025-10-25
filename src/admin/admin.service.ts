@@ -34,7 +34,15 @@ export class AdminService {
 
   async getAllUsers() {
     const snapshot = await this.usersCollection.get();
-    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const users = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id, 
+        ...doc.data(),
+        createdAt: data.createdAt?.toDate().toISOString() || null,
+        updatedAt: data.updatedAt?.toDate().toISOString() || null,
+      };
+    });
     return users;
   }
 
@@ -105,6 +113,9 @@ export class AdminService {
     name?: string,
     phone?: string,
     role?: string,
+    email?: string,
+    address?: string,
+    password?: string
   ) {
     try {
       const userRecord = await this.firebaseAuth.getUser(userId);

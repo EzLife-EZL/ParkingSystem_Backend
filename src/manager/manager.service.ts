@@ -1,5 +1,8 @@
+
 import {
   Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Express } from 'express';
 import { CreateSlotDto } from './dto/createSlot.dto';
@@ -9,9 +12,10 @@ import * as admin from 'firebase-admin';
 
 @Injectable()
 export class ManagerService {
-  constructor(
-    private firebaseService: FirebaseService,
-  ) { }
+  private firebaseAuth: admin.auth.Auth;
+  constructor(private firebaseService: FirebaseService) {
+    this.firebaseAuth = admin.auth();
+  }
 
   async createParkingSlot(path: string, body: CreateSlotDto) {
     const parkData = body.data;
@@ -98,26 +102,32 @@ export class ManagerService {
     }
 
     // Chuyển object thành array với format mong muốn
-    const result = Object.entries(data).map(([parkId, parkData]: [string, any]) => {
-      return {
-        park_id: parkId,
-        park_name: parkData.park_name || '',
-        address: parkData.address || '',
-        price: parkData.price || 0,
-        type_vehicle: parkData.type_vehicle || '',
-        slots: parkData.slots ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
-          return {
-            slot_id: slotId,
-            slot_name: slotData.slot_name || '',
-            pos_X: slotData.pos_x || 0,
-            pos_Y: slotData.pos_y || 0,
-            status: slotData.status || 'AVAILABLE',
-            spotNumber: slotData.spot_number || '',
-            ...slotData // Giữ lại các field khác nếu có
-          };
-        }) : []
-      };
-    });
+    const result = Object.entries(data).map(
+      ([parkId, parkData]: [string, any]) => {
+        return {
+          park_id: parkId,
+          park_name: parkData.park_name || '',
+          address: parkData.address || '',
+          price: parkData.price || 0,
+          type_vehicle: parkData.type_vehicle || '',
+          slots: parkData.slots
+            ? Object.entries(parkData.slots).map(
+                ([slotId, slotData]: [string, any]) => {
+                  return {
+                    slot_id: slotId,
+                    slot_name: slotData.slot_name || '',
+                    pos_X: slotData.pos_x || 0,
+                    pos_Y: slotData.pos_y || 0,
+                    status: slotData.status || 'AVAILABLE',
+                    spotNumber: slotData.spot_number || '',
+                    ...slotData, // Giữ lại các field khác nếu có
+                  };
+                },
+              )
+            : [],
+        };
+      },
+    );
 
     return result;
   }
@@ -138,17 +148,19 @@ export class ManagerService {
       price: parkData.price || 0,
       type_vehicle: parkData.type_vehicle || '',
       slots: parkData.slots
-        ? Object.entries(parkData.slots).map(([slotId, slotData]: [string, any]) => {
-            return {
-              slot_id: slotId,
-              pos_X: slotData.pos_x || 0,
-              pos_Y: slotData.pos_y || 0,
-              status: slotData.status || 'AVAILABLE',
-              spotNumber: slotData.spot_number || '',
-              slot_name: slotData.slot_name || '',
-              ...slotData, // giữ lại field khác nếu có
-            };
-          })
+        ? Object.entries(parkData.slots).map(
+            ([slotId, slotData]: [string, any]) => {
+              return {
+                slot_id: slotId,
+                pos_X: slotData.pos_x || 0,
+                pos_Y: slotData.pos_y || 0,
+                status: slotData.status || 'AVAILABLE',
+                spotNumber: slotData.spot_number || '',
+                slot_name: slotData.slot_name || '',
+                ...slotData, // giữ lại field khác nếu có
+              };
+            },
+          )
         : [],
     };
 
@@ -171,5 +183,61 @@ export class ManagerService {
       `park/${parkId}/slots/${slotId}`,
       body,
     );
+  }
+  async createParkingStaff(body: SignupDto) {
+    return this.signUpAccoutForParkingStaff(body);
+  }
+
+  async signUpAccoutForParkingStaff(signUpData: SignupDto) {
+    const { email, password, name, phone } = signUpData;
+    try {
+      // check if email already exists
+      try {
+        await this.firebaseAuth.getUserByEmail(email);
+        throw new UnauthorizedException('Email đã được sử dụng');
+      } catch (error) {
+        if (error.code !== 'auth/user-not-found') throw error;
+      }
+
+      // create user in firebase auth
+      const user = await this.firebaseAuth.createUser({
+        email,
+        password,
+        displayName: name,
+        phoneNumber: phone ? `+84${phone.replace(/^0/, '')}` : undefined,
+      });
+
+      // Custom claims
+      await this.firebaseAuth.setCustomUserClaims(user.uid, {
+        role: 'ParkingStaff',
+        name,
+        phone,
+        address: 'Chưa có địa chỉ',
+      });
+
+      // save to firestore
+      await this.firebaseService.createFirestoreRecord(`users/${user.uid}`, {
+        uid: user.uid,
+        email,
+        name,
+        phone: phone ? `+84${phone.replace(/^0/, '')}` : null,
+        role: 'ParkingStaff',
+        address: 'Chưa có địa chỉ',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // generate email verification link
+      const verifyLink =
+        await this.firebaseAuth.generateEmailVerificationLink(email);
+
+      return {
+        message: 'Đăng ký thành công',
+        uid: user.uid,
+        verifyLink,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
   }
 }

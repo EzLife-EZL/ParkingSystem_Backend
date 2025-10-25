@@ -36,8 +36,4 @@ export class UserController {
   async cancelReservation(@Param('bookingId') bookingId: string) {
     return this.userService.cancelReservation(bookingId);
   }
-
-
-
-
 }

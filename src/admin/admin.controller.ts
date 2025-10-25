@@ -21,7 +21,8 @@ export class AdminController {
 
   @Get('getallusers')
   async getAllUsers() {
-    return this.adminService.getAllUsers();
+    const users = await this.adminService.getAllUsers();
+    return { users };
   }
 
   @Post('postadmin')
@@ -46,16 +47,24 @@ export class AdminController {
 
   @Put('update-user-info/:id')
   async updateUserInfo(
-    @Param('id') userId: string,
-    @Body('name') name: string,
-    @Body('phone') phone: string,
-    @Body('role') role: string,
+      @Param('id') userId: string,
+      @Body() updateData: {
+          name?: string,
+          phone?: string,
+          role?: string,
+          email?: string,
+          address?: string,
+          password?: string
+      }
   ) {
-    return this.adminService.updateUserInfo(userId, name, phone, role);
-  }
-
-  @Delete('delete-user/:id')
-  async deleteUser(@Param('id') userId: string) {
-    return this.adminService.deleteUser(userId);
+      return this.adminService.updateUserInfo(
+          userId, 
+          updateData.name, 
+          updateData.phone, 
+          updateData.role,
+          updateData.email,
+          updateData.address,
+          updateData.password
+      );
   }
 }
