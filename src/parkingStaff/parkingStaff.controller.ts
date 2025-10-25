@@ -30,4 +30,9 @@ export class AppointmentController {
     return this.parkingStaffService.updateSlotStatus(parkId, slotId, isBooked);
   }
 
+  @Get('total-booked-slots/:parkId')
+  async getTotalBookedSlots(@Param('parkId') parkId: string) {
+    return this.parkingStaffService.getTotalBookedSlots(parkId);
+  }
+
 }
