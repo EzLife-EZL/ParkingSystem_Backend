@@ -100,7 +100,7 @@ export class ManagerService {
       return [];
     }
 
-    // Chuyển object thành array với format mong muốn
+    // format data
     const result = Object.entries(data).map(
       ([parkId, parkData]: [string, any]) => {
         return {
@@ -111,18 +111,18 @@ export class ManagerService {
           type_vehicle: parkData.type_vehicle || '',
           slots: parkData.slots
             ? Object.entries(parkData.slots).map(
-                ([slotId, slotData]: [string, any]) => {
-                  return {
-                    slot_id: slotId,
-                    slot_name: slotData.slot_name || '',
-                    pos_X: slotData.pos_x || 0,
-                    pos_Y: slotData.pos_y || 0,
-                    status: slotData.status || 'AVAILABLE',
-                    spotNumber: slotData.spot_number || '',
-                    ...slotData, // Giữ lại các field khác nếu có
-                  };
-                },
-              )
+              ([slotId, slotData]: [string, any]) => {
+                return {
+                  slot_id: slotId,
+                  slot_name: slotData.slot_name || '',
+                  pos_X: slotData.pos_x || 0,
+                  pos_Y: slotData.pos_y || 0,
+                  status: slotData.status || 'AVAILABLE',
+                  spotNumber: slotData.spot_number || '',
+                  ...slotData, // keep other fields if any
+                };
+              },
+            )
             : [],
         };
       },
@@ -134,12 +134,12 @@ export class ManagerService {
   async getParkById(parkId: string) {
     const parkData = await this.firebaseService.readRecord(`park/${parkId}`);
 
-    // Nếu không có dữ liệu hoặc không phải object => trả về null
+    // if park not found
     if (!parkData || typeof parkData !== 'object') {
       return null;
     }
 
-    // Format lại dữ liệu cùng dạng với getAllParkingSlots
+    // format data
     const result = {
       park_id: parkId,
       park_name: parkData.park_name || '',
@@ -148,18 +148,18 @@ export class ManagerService {
       type_vehicle: parkData.type_vehicle || '',
       slots: parkData.slots
         ? Object.entries(parkData.slots).map(
-            ([slotId, slotData]: [string, any]) => {
-              return {
-                slot_id: slotId,
-                pos_X: slotData.pos_x || 0,
-                pos_Y: slotData.pos_y || 0,
-                status: slotData.status || 'AVAILABLE',
-                spotNumber: slotData.spot_number || '',
-                slot_name: slotData.slot_name || '',
-                ...slotData, // giữ lại field khác nếu có
-              };
-            },
-          )
+          ([slotId, slotData]: [string, any]) => {
+            return {
+              slot_id: slotId,
+              pos_X: slotData.pos_x || 0,
+              pos_Y: slotData.pos_y || 0,
+              status: slotData.status || 'AVAILABLE',
+              spotNumber: slotData.spot_number || '',
+              slot_name: slotData.slot_name || '',
+              ...slotData, // keep other fields if any
+            };
+          },
+        )
         : [],
     };
 

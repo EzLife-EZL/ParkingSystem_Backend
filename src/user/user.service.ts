@@ -57,6 +57,7 @@ export class UserService {
       userId: reservation.userId,
       startTime: reservation.startTime,
       endTime: reservation.endTime,
+      price: reservation.price ?? 0,
 
       // Các field hay bị undefined -> set default
       status: reservation.status ?? 'pending',

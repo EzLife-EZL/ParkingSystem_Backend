@@ -1,4 +1,4 @@
-import { IsDate, IsOptional, IsString } from "class-validator";
+import { IsDate, IsNumber, IsOptional, IsString } from "class-validator";
 import { Type } from "class-transformer";
 
 export class ReservationDto {
@@ -30,6 +30,10 @@ export class ReservationDto {
     @IsOptional()
     @IsString()
     paymentMethod?: string;
+
+    @IsOptional()
+    @IsNumber()
+    price?: number;
 
     @IsOptional()
     @IsString()
