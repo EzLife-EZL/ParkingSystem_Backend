@@ -67,4 +67,9 @@ export class AdminController {
           updateData.password
       );
   }
+
+  @Post('create-parking-staff')
+  async createParkingStaff(@Body() signUpData: SignupDto) {
+    return this.adminService.createParkingStaff(signUpData);
+  }
 }

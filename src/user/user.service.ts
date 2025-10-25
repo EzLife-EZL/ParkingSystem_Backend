@@ -15,7 +15,7 @@ export class UserService {
   constructor(
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private firebaseService: FirebaseService,
-  ) {}
+  ) { }
 
   // async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
   //   console.log(updateFcmDto.token);
@@ -34,8 +34,6 @@ export class UserService {
   //   }
 
   // }
-
-  // src/user/user.service.ts
 
   async makeReservation(reservation: ReservationDto) {
     const { parkId, slotId } = reservation;
@@ -60,7 +58,7 @@ export class UserService {
       startTime: reservation.startTime,
       endTime: reservation.endTime,
 
-      // 🔴 Các field hay bị undefined -> set default
+      // Các field hay bị undefined -> set default
       status: reservation.status ?? 'pending',
       paymentMethod: reservation.paymentMethod ?? 'cash',
       statusPayment: reservation.statusPayment ?? 'unpaid',
@@ -116,8 +114,13 @@ export class UserService {
   async getBookingHistory(userId: string) {
     const data = await this.firebaseService.readRecord('bookings');
     if (!data) return [];
+    const reservations = Object.entries(data).map(
+      ([id, value]: [string, any]) => ({
+        id,
+        ...value,
+      }),
+    );
 
-    const reservations = Object.values(data);
     const userReservations = reservations.filter(
       (r: any) => r.userId === userId,
     );
@@ -127,23 +130,61 @@ export class UserService {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
-    return userReservations;
+    const enriched = await Promise.all(
+      userReservations.map(async (booking: any) => {
+        const park = await this.firebaseService.readRecord(
+          `park/${booking.parkId}`,
+        );
+
+        return {
+          ...booking,
+          parkName: booking.parkName ?? park?.park_name ?? null,
+          address: booking.address ?? park?.address ?? null,
+          type_vehicle: booking.type_vehicle ?? park?.type_vehicle ?? null,
+          price: booking.price ?? park?.price ?? null,
+        };
+      }),
+    );
+
+    return enriched;
   }
 
   async getBookingDetails(bookingId: string) {
-    const booking = await this.firebaseService.readRecord(
+    const booking: any = await this.firebaseService.readRecord(
       `bookings/${bookingId}`,
     );
-    return booking;
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const parkData = await this.firebaseService.readRecord(
+      `park/${booking.parkId}`,
+    );
+    const enriched = {
+      ...booking,
+      parkName: booking.parkName ?? parkData?.park_name ?? '',
+      address: booking.address ?? parkData?.address ?? '',
+      type_vehicle: booking.type_vehicle ?? parkData?.type_vehicle ?? '',
+      price: booking.price ?? parkData?.price ?? 0,
+    };
+
+    return enriched;
   }
 
   async cancelReservation(bookingId: string) {
     const booking = await this.firebaseService.readRecord(
       `bookings/${bookingId}`,
     );
+
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+
+    const park = await this.firebaseService.readRecord(
+      `park/${booking.parkId}`,
+    );
+
     const slotPath = `park/${booking.parkId}/slots/${booking.slotId}`;
     await this.firebaseService.updateRecord(slotPath, {
       pos_X: booking.pos_X,
@@ -151,7 +192,23 @@ export class UserService {
       slotName: booking.slotName,
       isBooked: false,
     });
-    await this.firebaseService.deleteRecord(`bookings/${bookingId}`);
-    return { message: 'Reservation canceled successfully' };
+
+    const bookingPath = `bookings/${bookingId}`;
+    await this.firebaseService.updateRecord(bookingPath, {
+      status: 'cancelled',
+      canceledAt: new Date().toISOString(),
+    });
+
+    const updatedBooking = await this.firebaseService.readRecord(bookingPath);
+
+    return {
+      id: bookingId,
+      ...booking,
+      parkName: booking.parkName ?? park?.park_name ?? null,
+      address: booking.address ?? park?.address ?? null,
+      type_vehicle: booking.type_vehicle ?? park?.type_vehicle ?? null,
+      price: booking.price ?? park?.price ?? null,
+      booking: updatedBooking,
+    };
   }
 }
