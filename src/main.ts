@@ -14,23 +14,25 @@ async function bootstrap() {
 
   let serviceAccount;
   if (isProduction) {
-    // Render environment - read from /etc/secrets
-    try {
-      const serviceAccountPath = '/etc/secrets/firebase-service-account.json';
-      serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-    } catch (error) {
-      console.error('Error loading Firebase service account from Render secrets:', error);
-      process.exit(1);
-    }
-  } else {
-    // Local development - read from project directory
-    try {
-      serviceAccount = require(path.join(__dirname, '..', 'firebase-service-account.json'));
-    } catch (error) {
-      console.error('Error loading Firebase service account locally:', error);
-      process.exit(1);
-    }
+  try {
+    const serviceAccountPath = path.join(
+      process.cwd(),
+      'firebase-service-account.json'
+    );
+    serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  } catch (error) {
+    console.error('Error loading Firebase service account on Render:', error);
+    process.exit(1);
   }
+} else {
+  try {
+    serviceAccount = require(path.join(__dirname, '..', 'firebase-service-account.json'));
+  } catch (error) {
+    console.error('Error loading Firebase service account locally:', error);
+    process.exit(1);
+  }
+}
+
 
   const app = await NestFactory.create(AppModule);
   app.enableCors();
