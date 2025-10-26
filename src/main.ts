@@ -18,6 +18,8 @@ async function bootstrap() {
     try {
       const serviceAccountPath = '/etc/secrets/firebase-service-account.json';
       serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      console.log('File exists?', fs.existsSync('/etc/secrets/firebase-service-account.json'));
+
     } catch (error) {
       console.error('Error loading Firebase service account from Render secrets:', error);
       process.exit(1);
