@@ -61,6 +61,7 @@ export class UserService {
 
       // Các field hay bị undefined -> set default
       status: reservation.status ?? 'pending',
+      slotStatus: reservation.slotStatus ?? 'chua gui xe',
       paymentMethod: reservation.paymentMethod ?? 'cash',
       statusPayment: reservation.statusPayment ?? 'unpaid',
       numberPlate: reservation.numberPlate ?? '',

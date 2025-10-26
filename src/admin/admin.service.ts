@@ -237,5 +237,61 @@ export class AdminService {
     }
   }
 
+  async checkBookingInFirestore(bookingId: string) {
+    try {
+      const path = `bookings/${bookingId}`;
+      const booking = await this.firebaseService.readRecord(path);
+
+      if (!booking) {
+        return { success: false, message: 'Booking not found' };
+      }
+
+      let updateData: any = {};
+      const now = new Date().toISOString();
+
+      // check slotStatus and update accordingly
+      if (booking.slotStatus === 'chua gui xe') {
+        updateData = {
+          slotStatus: 'da gui xe',
+          checkInTime: now,
+        };
+      } else if (booking.slotStatus === 'da gui xe') {
+        updateData = {
+          slotStatus: 'da hoan thanh',
+          status: 'done',
+          checkOutTime: now,
+        };
+
+        // update slot to be available
+        if (booking.parkId && booking.slotIndex !== undefined) {
+          const slotPath = `park/${booking.parkId}/slots/${booking.slotIndex}`;
+          await this.firebaseService.updateRecord(slotPath, { isBooked: false });
+        }
+      } else if (booking.slotStatus === 'da hoan thanh') {
+        return {
+          success: true,
+          message: 'Booking already completed',
+          booking,
+        };
+      } else {
+        return {
+          success: false,
+          message: `Status is not valid: ${booking.status}`,
+        };
+      }
+
+      await this.firebaseService.updateRecord(path, updateData);
+
+      return {
+        success: true,
+        message: `Booking status updated: ${updateData.status}`,
+        updatedAt: now,
+      };
+    } catch (error) {
+      console.error('Error checking/updating booking:', error);
+      return { success: false, message: 'Lỗi xử lý booking' };
+    }
+  }
+
 
 }

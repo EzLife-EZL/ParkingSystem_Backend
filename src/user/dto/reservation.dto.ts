@@ -29,6 +29,10 @@ export class ReservationDto {
 
     @IsOptional()
     @IsString()
+    slotStatus?: string;
+
+    @IsOptional()
+    @IsString()
     paymentMethod?: string;
 
     @IsOptional()

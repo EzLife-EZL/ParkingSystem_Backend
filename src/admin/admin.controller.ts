@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -62,5 +63,12 @@ export class AdminController {
   @Post('create-parking-staff')
   async createParkingStaff(@Body() signUpData: SignupDto) {
     return this.adminService.createParkingStaff(signUpData);
+  }
+
+  @Get('check-booking/:bookingId')
+  async checkBooking(@Param('bookingId') bookingId: string) {
+    if (!bookingId) throw new BadRequestException('Missing bookingId');
+    const exists = await this.adminService.checkBookingInFirestore(bookingId);
+    return { exists };
   }
 }
