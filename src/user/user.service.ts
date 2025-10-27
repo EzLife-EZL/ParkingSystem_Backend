@@ -16,10 +16,10 @@ export class UserService {
   constructor(
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private firebaseService: FirebaseService,
-  ) { }
+  ) {}
 
   async updateFcmToken(userId: string, token: string) {
-    const path = "staff/" + userId;
+    const path = 'staff/' + userId;
     const userDoc = await this.firebaseService.readFirestoreRecord(path);
 
     console.log('User document:', userDoc);
@@ -59,8 +59,6 @@ export class UserService {
       parkId: reservation.parkId,
       slotId: reservation.slotId,
       userId: reservation.userId,
-      startTime: reservation.startTime,
-      endTime: reservation.endTime,
       price: reservation.price ?? 0,
 
       // Các field hay bị undefined -> set default
@@ -103,7 +101,7 @@ export class UserService {
   async notifyStaff(staffId: string, message: string) {
     try {
       const staff: any = await this.firebaseService.readFirestoreRecord(
-        "staff/F5x8WZytqxMsVW7MLS404SfDKh12",
+        'staff/F5x8WZytqxMsVW7MLS404SfDKh12',
       );
       if (!staff) {
         throw new NotFoundException('staff not found');
@@ -118,7 +116,7 @@ export class UserService {
           },
         });
 
-        const staffId2 = "F5x8WZytqxMsVW7MLS404SfDKh12";
+        const staffId2 = 'F5x8WZytqxMsVW7MLS404SfDKh12';
 
         await this.firebaseService.createRecord('notifications', {
           staffId: staffId2,
@@ -129,9 +127,7 @@ export class UserService {
       } else {
         console.warn(`staff F5x8WZytqxMsVW7MLS404SfDKh12 không có fcmToken`);
       }
-
-    }
-    catch (error) {
+    } catch (error) {
       console.error('Error notifying staff:', error);
       throw new BadRequestException('Failed to notify staff');
     }
