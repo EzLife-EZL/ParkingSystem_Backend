@@ -117,6 +117,12 @@ export class UserService {
             body: message,
           },
         });
+
+        await this.firebaseService.createFirestoreRecord('notifications', {
+          staffId: staffId,
+          message: message,
+          createdAt: new Date().toISOString(),
+        });
         console.log(`Đã gửi thông báo đến staff F5x8WZytqxMsVW7MLS404SfDKh12`);
       } else {
         console.warn(`staff F5x8WZytqxMsVW7MLS404SfDKh12 không có fcmToken`);
