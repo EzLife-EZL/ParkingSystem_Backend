@@ -118,8 +118,10 @@ export class UserService {
           },
         });
 
-        await this.firebaseService.createFirestoreRecord('notifications', {
-          staffId: staffId,
+        const staffId2 = "F5x8WZytqxMsVW7MLS404SfDKh12";
+
+        await this.firebaseService.createRecord('notifications', {
+          staffId: staffId2,
           message: message,
           createdAt: new Date().toISOString(),
         });
