@@ -10,7 +10,7 @@ async function bootstrap() {
   dotenv.config();
 
   // Check if running in Render environment
-  const isProduction = true;
+  const isProduction = process.env.RENDER_ENVIRONMENT === 'production';
 
   let serviceAccount;
   if (isProduction) {

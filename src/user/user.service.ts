@@ -8,6 +8,7 @@ import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { UpdateFcmDto } from './dto/update-fcm.dto';
 import { ReservationDto } from './dto/reservation.dto';
+import * as admin from 'firebase-admin';
 import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
@@ -17,23 +18,26 @@ export class UserService {
     private firebaseService: FirebaseService,
   ) { }
 
-  // async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
-  //   console.log(updateFcmDto.token);
-  //   if (updateFcmDto.userModel == 'User') {
-  //     return this.UserModel.findByIdAndUpdate(
-  //       userId,
-  //       { fcmToken: updateFcmDto.token },
-  //       { new: true }
-  //     );
-  //   } else if (updateFcmDto.userModel == 'Doctor') {
-  //     return this.DoctorModel.findByIdAndUpdate(
-  //       userId,
-  //       { fcmToken: updateFcmDto.token },
-  //       { new: true }
-  //     );
-  //   }
+  async updateFcmToken(userId: string, token: string) {
+    const path = "staff/" + userId;
+    const userDoc = await this.firebaseService.readFirestoreRecord(path);
 
-  // }
+    console.log('User document:', userDoc);
+
+    // Nếu user chưa có document thì tạo mới
+    if (!userDoc) {
+      return this.firebaseService.createFirestoreRecord(path, {
+        fcmToken: token,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Nếu đã có thì cập nhật hoặc thêm mới field
+    return this.firebaseService.updateFirestoreRecord(path, {
+      fcmToken: token,
+      updatedAt: new Date().toISOString(),
+    });
+  }
 
   async makeReservation(reservation: ReservationDto) {
     const { parkId, slotId } = reservation;
@@ -87,10 +91,42 @@ export class UserService {
       reservationData,
     );
 
+    // 4) Thống báo cho staff
+    await this.notifyStaff(parkingSlot.staffId, 'You have a new reservation.');
+
     return {
       message: 'Reservation successful',
       reservation: reservationRecord,
     };
+  }
+
+  async notifyStaff(staffId: string, message: string) {
+    try {
+      const staff: any = await this.firebaseService.readFirestoreRecord(
+        "staff/F5x8WZytqxMsVW7MLS404SfDKh12",
+      );
+      if (!staff) {
+        throw new NotFoundException('staff not found');
+      }
+
+      if (staff?.fcmToken) {
+        await admin.messaging().send({
+          token: staff.fcmToken,
+          notification: {
+            title: 'GoPark Notification',
+            body: message,
+          },
+        });
+        console.log(`Đã gửi thông báo đến staff F5x8WZytqxMsVW7MLS404SfDKh12`);
+      } else {
+        console.warn(`staff F5x8WZytqxMsVW7MLS404SfDKh12 không có fcmToken`);
+      }
+
+    }
+    catch (error) {
+      console.error('Error notifying staff:', error);
+      throw new BadRequestException('Failed to notify staff');
+    }
   }
 
   async getAvailableParkingSlots(parkId: string) {
