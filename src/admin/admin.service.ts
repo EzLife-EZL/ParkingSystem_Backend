@@ -263,6 +263,7 @@ export class AdminService {
         updateData = {
           slotStatus: 'da hoan thanh',
           status: 'done',
+          statusPayment: 'paid',
           checkOutTime: now,
         };
         notifyMessage = `Your vehicle has been checked out at ${new Date(now).toLocaleTimeString()}`;

@@ -240,4 +240,174 @@ export class ManagerService {
       throw new InternalServerErrorException(error.message);
     }
   }
+
+  async getRevenueReport(period: string) {
+    try {
+      const now = new Date();
+      let currentPeriodStart: Date;
+      let currentPeriodEnd: Date;
+      let previousPeriodStart: Date;
+      let previousPeriodEnd: Date;
+      let currentLabel: string;
+      let previousLabel: string;
+
+      switch (period.toLowerCase()) {
+        case 'day':
+          currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+          currentPeriodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+          previousPeriodStart = new Date(currentPeriodStart);
+          previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
+          previousPeriodEnd = new Date(currentPeriodEnd);
+          previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 1);
+
+          currentLabel = 'Today';
+          previousLabel = 'Yesterday';
+          break;
+
+        case 'year':
+          currentPeriodStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+          currentPeriodEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+
+          previousPeriodStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0);
+          previousPeriodEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+
+          currentLabel = 'This Year';
+          previousLabel = 'Last Year';
+          break;
+
+        case 'month':
+        default:
+          currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+          currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+          previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+          previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+          currentLabel = 'This Month';
+          previousLabel = 'Last Month';
+          break;
+      }
+
+      console.log('=== DEBUG REVENUE REPORT ===');
+      console.log('Period:', period);
+      console.log('Current Period:', currentPeriodStart, 'to', currentPeriodEnd);
+
+      const allBookings = await this.firebaseService.readRecord('bookings');
+
+      // Kiểm tra data structure
+      console.log('\n=== FIREBASE DATA DEBUG ===');
+      console.log('Type of allBookings:', typeof allBookings);
+      console.log('Is array?', Array.isArray(allBookings));
+      console.log('allBookings:', JSON.stringify(allBookings, null, 2));
+
+      if (allBookings) {
+        console.log('Keys:', Object.keys(allBookings));
+        console.log('Number of keys:', Object.keys(allBookings).length);
+      }
+
+      let currentRevenue = 0;
+      let previousRevenue = 0;
+      let totalBookings = 0;
+      let paidBookings = 0;
+
+      if (allBookings && typeof allBookings === 'object') {
+        // Thử cả 2 cách: Object.values và Object.entries
+        const bookingEntries = Object.entries(allBookings);
+        console.log('\n=== Processing bookings ===');
+        console.log('Total entries:', bookingEntries.length);
+
+        bookingEntries.forEach(([key, booking]: [string, any]) => {
+          totalBookings++;
+
+          console.log(`\n--- Booking ${totalBookings} (Key: ${key}) ---`);
+          console.log('Full booking data:', JSON.stringify(booking, null, 2));
+
+          // Kiểm tra tất cả các field có thể
+          console.log('statusPayment:', booking.statusPayment);
+          console.log('status:', booking.status);
+          console.log('paymentStatus:', booking.paymentStatus);
+          console.log('price:', booking.price);
+          console.log('createdAt:', booking.createdAt);
+
+          // Kiểm tra statusPayment (có thể là field khác)
+          const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
+
+          if (paymentStatus !== 'paid') {
+            console.log(`❌ Skipped: Payment status is "${paymentStatus}", not "paid"`);
+            return;
+          }
+
+          paidBookings++;
+
+          if (!booking.price) {
+            console.log('❌ Skipped: No price');
+            return;
+          }
+
+          const bookingDateStr = booking.createdAt;
+          if (!bookingDateStr) {
+            console.log('❌ Skipped: No createdAt');
+            return;
+          }
+
+          const bookingDate = new Date(bookingDateStr);
+          if (isNaN(bookingDate.getTime())) {
+            console.warn('❌ Invalid date:', bookingDateStr);
+            return;
+          }
+
+          const price = parseFloat(booking.price) || 0;
+
+          console.log('✅ Valid booking - Date:', bookingDate, 'Price:', price);
+
+          if (bookingDate >= currentPeriodStart && bookingDate <= currentPeriodEnd) {
+            currentRevenue += price;
+            console.log('✅ Added to current period');
+          }
+
+          if (bookingDate >= previousPeriodStart && bookingDate <= previousPeriodEnd) {
+            previousRevenue += price;
+            console.log('✅ Added to previous period');
+          }
+        });
+      }
+
+      console.log('\n=== SUMMARY ===');
+      console.log('Total bookings:', totalBookings);
+      console.log('Paid bookings:', paidBookings);
+      console.log('Current Revenue:', currentRevenue);
+      console.log('Previous Revenue:', previousRevenue);
+
+      let growthPercentage = 0;
+      if (previousRevenue > 0) {
+        growthPercentage = parseFloat(
+          (((currentRevenue - previousRevenue) / previousRevenue) * 100).toFixed(2)
+        );
+      } else if (currentRevenue > 0) {
+        growthPercentage = 100;
+      }
+
+      const isPositiveGrowth = growthPercentage >= 0;
+
+      return {
+        currentPeriod: {
+          amount: parseFloat(currentRevenue.toFixed(2)),
+          label: currentLabel,
+        },
+        previousPeriod: {
+          amount: parseFloat(previousRevenue.toFixed(2)),
+          label: previousLabel,
+        },
+        growthPercentage: Math.abs(growthPercentage),
+        isPositiveGrowth: isPositiveGrowth,
+        comparisonText: `Compared to ${previousLabel.toLowerCase()}`,
+      };
+    } catch (error) {
+      console.error('Error in getRevenueReport:', error);
+      throw new InternalServerErrorException(
+        `Lỗi khi lấy báo cáo doanh thu: ${error.message}`,
+      );
+    }
+  }
 }
