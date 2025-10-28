@@ -413,6 +413,81 @@ export class ManagerService {
     }
   }
 
+  // Thêm: tổng doanh thu theo bộ lọc (ví dụ 'week' = từ hôm nay về 7 ngày trước)
+  async getTotalRevenue(period: string = 'month') {
+    try {
+      const now = new Date();
+      const startDate = this.getStartDateForPeriod(period, now);
+
+      const allBookings = await this.firebaseService.readRecord('bookings');
+      if (!allBookings || typeof allBookings !== 'object') {
+        return {
+          period,
+          startDate: startDate.toISOString(),
+          endDate: now.toISOString(),
+          totalRevenue: 0,
+          totalBookings: 0,
+          paidBookings: 0,
+        };
+      }
+
+      let totalRevenue = 0;
+      let totalBookings = 0;
+      let paidBookings = 0;
+
+      Object.values(allBookings).forEach((booking: any) => {
+        totalBookings++;
+
+        const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
+        if (String(paymentStatus).toLowerCase() !== 'paid') {
+          return;
+        }
+
+        const bookingDateStr = booking.createdAt || booking.created_at || booking.date;
+        if (!bookingDateStr) return;
+
+        const bookingDate = new Date(bookingDateStr);
+        if (isNaN(bookingDate.getTime())) return;
+
+        if (bookingDate < startDate || bookingDate > now) return;
+
+        const price = parseFloat(booking.price) || Number(booking.price) || 0;
+        totalRevenue += price;
+        paidBookings++;
+      });
+
+      return {
+        period,
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString(),
+        totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+        totalBookings,
+        paidBookings,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Lỗi khi tính tổng doanh thu: ${error.message}`,
+      );
+    }
+  }
+
+  // helper: xác định ngày bắt đầu theo period
+  private getStartDateForPeriod(period: string, now: Date): Date {
+    const p = (period || 'month').toLowerCase();
+    switch (p) {
+      case 'day':
+        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      case 'week':
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case 'month':
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case 'year':
+        return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      default:
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+  }
+
   /**
    * Calculate period ranges dựa trên filter
    */

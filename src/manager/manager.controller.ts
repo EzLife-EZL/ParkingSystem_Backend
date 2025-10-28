@@ -68,9 +68,14 @@ export class ManagerController {
     return this.managerService.getParkingOverview();
   }
 
-
   @Get('revenue-vehicle-type')
   async getRevenueByVehicleType() {
     return this.managerService.getRevenueByVehicleType();
+  }
+
+  // Thêm endpoint lấy tổng doanh thu theo bộ lọc (query ?period=week|month|day|year)
+  @Get('total-revenue')
+  async getTotalRevenue(@Query('period') period?: string) {
+    return this.managerService.getTotalRevenue(period || 'month');
   }
 }
