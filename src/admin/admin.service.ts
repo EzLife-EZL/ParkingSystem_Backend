@@ -289,13 +289,13 @@ export class AdminService {
       await this.firebaseService.updateRecord(path, updateData);
 
       if (booking.userId) {
-        await this.notifyUser(booking.userId, notifyMessage);
+        await this.notifyUser(booking.userId, bookingId, notifyMessage);
       }
       if (booking.staffId) {
-        await this.notifyStaff(booking.staffId, `Booking ${bookingId} was updated to "${updateData.slotStatus}"`);
+        await this.notifyStaff(booking.staffId, booking.parkId, `Booking ${bookingId} was updated to "${updateData.slotStatus}"`);
       } else {
 
-        await this.notifyStaff('F5x8WZytqxMsVW7MLS404SfDKh12', `Booking ${bookingId} was updated to "${updateData.slotStatus}"`);
+        await this.notifyStaff('F5x8WZytqxMsVW7MLS404SfDKh12', booking.parkId, `Booking ${bookingId} was updated to "${updateData.slotStatus}"`);
       }
       return {
         success: true,
@@ -308,7 +308,7 @@ export class AdminService {
     }
   }
 
-  async notifyUser(userId: string, message: string) {
+  async notifyUser(userId: string, reservationId: string, message: string) {
     try {
       const user: any = await this.firebaseService.readFirestoreRecord(
         'users/' + userId,
@@ -329,6 +329,8 @@ export class AdminService {
         await this.firebaseService.createRecord('notifications', {
           userId: userId,
           message: message,
+          navPath: `booking_detail/${reservationId}`,
+          isRead: false,
           createdAt: new Date().toISOString(),
         });
         console.log(`Đã gửi thông báo đến user ${userId}`);
@@ -341,7 +343,7 @@ export class AdminService {
     }
   }
 
-  async notifyStaff(staffId: string, message: string) {
+  async notifyStaff(staffId: string, parkId: string, message: string) {
     try {
       const staff: any = await this.firebaseService.readFirestoreRecord(
         'staff/F5x8WZytqxMsVW7MLS404SfDKh12',
@@ -364,6 +366,8 @@ export class AdminService {
         await this.firebaseService.createRecord('notifications', {
           staffId: staffId2,
           message: message,
+          navPath: `park/${parkId}`,
+          isRead: false,
           createdAt: new Date().toISOString(),
         });
         console.log(`Đã gửi thông báo đến staff F5x8WZytqxMsVW7MLS404SfDKh12`);
