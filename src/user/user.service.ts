@@ -8,32 +8,63 @@ import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { UpdateFcmDto } from './dto/update-fcm.dto';
 import { ReservationDto } from './dto/reservation.dto';
+import * as admin from 'firebase-admin';
 import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class UserService {
+  private firebaseAuth: admin.auth.Auth;
   constructor(
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private firebaseService: FirebaseService,
-  ) { }
+  ) {
+    this.firebaseAuth = admin.auth();
+  }
 
-  // async updateFcmToken(userId: string, updateFcmDto: UpdateFcmDto) {
-  //   console.log(updateFcmDto.token);
-  //   if (updateFcmDto.userModel == 'User') {
-  //     return this.UserModel.findByIdAndUpdate(
-  //       userId,
-  //       { fcmToken: updateFcmDto.token },
-  //       { new: true }
-  //     );
-  //   } else if (updateFcmDto.userModel == 'Doctor') {
-  //     return this.DoctorModel.findByIdAndUpdate(
-  //       userId,
-  //       { fcmToken: updateFcmDto.token },
-  //       { new: true }
-  //     );
-  //   }
+  async updateFcmToken(userId: string, token: string) {
+    // Thử tìm trong collection staff
+    const staffPath = `staff/${userId}`;
+    const userPath = `users/${userId}`;
 
-  // }
+    let targetPath = '';
+    let existingDoc: any = null;
+
+    // Kiểm tra staff trước
+    const staffDoc = await this.firebaseService.readFirestoreRecord(staffPath);
+    console.log('Staff doc:', staffDoc);
+    if (staffDoc) {
+      targetPath = staffPath;
+      existingDoc = staffDoc;
+    } else {
+      // Nếu không phải staff thì thử trong users
+      const userDoc = await this.firebaseService.readFirestoreRecord(userPath);
+      if (userDoc) {
+        targetPath = userPath;
+        existingDoc = userDoc;
+      }
+    }
+
+    // Nếu chưa có trong cả hai => mặc định tạo mới trong users
+    if (!targetPath) {
+      targetPath = userPath;
+    }
+
+    console.log('Updating FCM for path:', targetPath);
+
+    // Nếu chưa có document thì tạo mới
+    if (!existingDoc) {
+      return this.firebaseService.createFirestoreRecord(targetPath, {
+        fcmToken: token,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Nếu đã có thì cập nhật
+    return this.firebaseService.updateFirestoreRecord(targetPath, {
+      fcmToken: token,
+      updatedAt: new Date().toISOString(),
+    });
+  }
 
   async makeReservation(reservation: ReservationDto) {
     const { parkId, slotId } = reservation;
@@ -55,8 +86,6 @@ export class UserService {
       parkId: reservation.parkId,
       slotId: reservation.slotId,
       userId: reservation.userId,
-      startTime: reservation.startTime,
-      endTime: reservation.endTime,
       price: reservation.price ?? 0,
 
       // Các field hay bị undefined -> set default
@@ -87,10 +116,93 @@ export class UserService {
       reservationData,
     );
 
+    const reservationId = reservationRecord.id;
+    const parkId2 = reservationRecord.parkId;
+
+    console.log('Created reservation with ID:', reservationId);
+
+    // 4) Thống báo cho staff
+    await this.notifyStaff(parkingSlot.staffId, parkId2, `User ${reservation.userId} has made a new reservation.`);
+
+    // 5) Thống báo cho người dùng
+    await this.notifyUser(reservation.userId, reservationId, 'You have made a new reservation.');
+
     return {
       message: 'Reservation successful',
       reservation: reservationRecord,
     };
+  }
+
+  async notifyUser(userId: string, reservationId: string, message: string) {
+    try {
+      const user: any = await this.firebaseService.readFirestoreRecord(
+        'users/' + userId,
+      );
+      if (!user) {
+        throw new NotFoundException('user not found');
+      }
+
+      if (user?.fcmToken) {
+        await admin.messaging().send({
+          token: user.fcmToken,
+          notification: {
+            title: 'GoPark Notification',
+            body: message,
+          },
+        });
+
+        await this.firebaseService.createRecord('notifications', {
+          userId: userId,
+          message: message,
+          navPath: `booking_detail/${reservationId}`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`Đã gửi thông báo đến user ${userId}`);
+      } else {
+        console.log(`Fcm token of user ${userId} not found, skip sending notification`);
+      }
+    } catch (error) {
+      console.error('Error notifying user:', error);
+      throw new BadRequestException('Failed to notify user');
+    }
+  }
+
+  async notifyStaff(staffId: string, parkId: string, message: string) {
+    try {
+      const staff: any = await this.firebaseService.readFirestoreRecord(
+        'staff/F5x8WZytqxMsVW7MLS404SfDKh12',
+      );
+      if (!staff) {
+        throw new NotFoundException('staff not found');
+      }
+
+      if (staff?.fcmToken) {
+        await admin.messaging().send({
+          token: staff.fcmToken,
+          notification: {
+            title: 'GoPark Notification',
+            body: message,
+          },
+        });
+
+        const staffId2 = 'F5x8WZytqxMsVW7MLS404SfDKh12';
+
+        await this.firebaseService.createRecord('notifications', {
+          staffId: staffId2,
+          message: message,
+          navPath: `park/${parkId}`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`Đã gửi thông báo đến staff F5x8WZytqxMsVW7MLS404SfDKh12`);
+      } else {
+        console.warn(`staff F5x8WZytqxMsVW7MLS404SfDKh12 không có fcmToken`);
+      }
+    } catch (error) {
+      console.error('Error notifying staff:', error);
+      throw new BadRequestException('Failed to notify staff');
+    }
   }
 
   async getAvailableParkingSlots(parkId: string) {
@@ -212,5 +324,23 @@ export class UserService {
       price: booking.price ?? park?.price ?? null,
       booking: updatedBooking,
     };
+  }
+
+  async updateProfile(userId: string, body: any) {
+    const userPath = `users/${userId}`;
+    const existingUser = await this.firebaseService.readFirestoreRecord(userPath);
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+    // update user profile in firebase auth
+    if (body.email || body.password || body.displayName || body.phoneNumber) {
+      await this.firebaseAuth.updateUser(userId, {
+        ...(body.email && { email: body.email }),
+        ...(body.password && { password: body.password }),
+        ...(body.displayName && { displayName: body.displayName }),
+        ...(body.phoneNumber && { phoneNumber: body.phoneNumber }),
+      });
+    }
+    await this.firebaseService.updateFirestoreRecord(userPath, body);
   }
 }

@@ -3,9 +3,4 @@ import { IsNotEmpty, IsMongoId, IsIn, IsString, IsArray, IsOptional } from 'clas
 export class UpdateFcmDto {
     @IsNotEmpty()
     token: string;
-
-    @IsString()
-    @IsNotEmpty()
-    @IsIn(['User', 'Doctor'])
-    userModel: string;
 }

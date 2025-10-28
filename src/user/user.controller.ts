@@ -7,10 +7,10 @@ import { ReservationDto } from './dto/reservation.dto';
 export class UserController {
   constructor(private readonly userService: UserService) { }
 
-  // @Put(':id/fcm-token')
-  // async updateFcmToken(@Param('id') id: string, @Body() updateFcmDto: UpdateFcmDto) {
-  //   return this.userService.updateFcmToken(id, updateFcmDto);
-  // }
+  @Put(':id/fcm-token')
+  async updateFcmToken(@Param('id') id: string, @Body() body: { token: string }) {
+    return this.userService.updateFcmToken(id, body.token);
+  }
 
   @Post('make-reservation')
   async makeReservation(@Body() reservationDto: ReservationDto) {
@@ -37,7 +37,10 @@ export class UserController {
     return this.userService.cancelReservation(bookingId);
   }
 
-
+  @Put('update-profile/:userId')
+  async updateProfile(@Param('userId') userId: string, @Body() body: any) {
+    return this.userService.updateProfile(userId, body);
+  }
 
 
 }

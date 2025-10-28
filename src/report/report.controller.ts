@@ -1,20 +1,31 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ReportService } from './report.service';
 
 @Controller('report')
 export class ReportController {
-  constructor(private readonly reportService: ReportService) { }
+  constructor(private readonly reportService: ReportService) {}
 
   @Post()
-  async create(@Body() body: {
-    bookingId: string;
-    content: string;
-    createdAt: string;
-    slotId: string;
-    status: 'opened' | 'closed';
-    title: string;
-    userId: string;
-  }) {
+  async create(
+    @Body()
+    body: {
+      bookingId: string;
+      content: string;
+      createdAt: string;
+      slotId: string;
+      status: 'opened' | 'closed';
+      title: string;
+      userId: string;
+    },
+  ) {
     return this.reportService.createReport(body);
   }
 
@@ -34,9 +45,13 @@ export class ReportController {
   @Patch(':id/response')
   async updateResponse(
     @Param('id') id: string,
-    @Body() body: { responseContent: string; responseTime: string }
+    @Body() body: { responseContent: string; responseTime: string },
   ) {
-    return this.reportService.updateResponse(id, body.responseContent, body.responseTime);
+    return this.reportService.updateResponse(
+      id,
+      body.responseContent,
+      body.responseTime,
+    );
   }
 
   @Delete(':id')
@@ -44,4 +59,8 @@ export class ReportController {
     return this.reportService.deleteReport(id);
   }
 
+  @Get('/user/:userId')
+  async getMyReports(@Param('userId') userId: string) {
+    return this.reportService.getReportsByUser(userId);
+  }
 }

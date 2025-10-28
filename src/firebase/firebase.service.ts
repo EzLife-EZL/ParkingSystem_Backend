@@ -72,6 +72,12 @@ export class FirebaseService {
         return snapshot.val();
     }
 
+    async readRecordById(path: string, id: string): Promise<any> {
+        const ref = admin.database().ref(`${path}/${id}`);
+        const snapshot = await ref.once('value');
+        return snapshot.val();
+    }
+
     async updateRecord(path: string, data: any) {
         const ref = admin.database().ref(path);
         await ref.update(data);
