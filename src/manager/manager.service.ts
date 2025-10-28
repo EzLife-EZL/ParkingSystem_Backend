@@ -304,164 +304,63 @@ export class ManagerService {
     }
   }
 
+  /**
+   * Get revenue report với filter chuẩn hóa
+   * @param period: 'day' | 'week' | 'month' | 'year'
+   */
   async getRevenueReport(period: string) {
     try {
       const now = new Date();
-      let currentPeriodStart: Date;
-      let currentPeriodEnd: Date;
-      let previousPeriodStart: Date;
-      let previousPeriodEnd: Date;
-      let currentLabel: string;
-      let previousLabel: string;
+      const { currentPeriodStart, currentPeriodEnd, previousPeriodStart, previousPeriodEnd, currentLabel, previousLabel } = 
+        this.calculatePeriodRanges(period, now);
 
-      switch (period.toLowerCase()) {
-        case 'day':
-          currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-          currentPeriodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-          previousPeriodStart = new Date(currentPeriodStart);
-          previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
-          previousPeriodEnd = new Date(currentPeriodEnd);
-          previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 1);
-
-          currentLabel = 'Today';
-          previousLabel = 'Yesterday';
-          break;
-
-        case 'year':
-          currentPeriodStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-          currentPeriodEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-
-          previousPeriodStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0);
-          previousPeriodEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
-
-          currentLabel = 'This Year';
-          previousLabel = 'Last Year';
-          break;
-
-        case 'month':
-        default:
-          currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-          currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-          previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
-          previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-
-          currentLabel = 'This Month';
-          previousLabel = 'Last Month';
-          break;
-      }
-
-      console.log('=== DEBUG REVENUE REPORT ===');
+      console.log('=== REVENUE REPORT ===');
       console.log('Period:', period);
-      console.log('Current Period:', currentPeriodStart, 'to', currentPeriodEnd);
+      console.log('Current:', currentPeriodStart, 'to', currentPeriodEnd);
+      console.log('Previous:', previousPeriodStart, 'to', previousPeriodEnd);
 
       const allBookings = await this.firebaseService.readRecord('bookings');
 
-      // Kiểm tra data structure
-      console.log('\n=== FIREBASE DATA DEBUG ===');
-      console.log('Type of allBookings:', typeof allBookings);
-      console.log('Is array?', Array.isArray(allBookings));
-      console.log('allBookings:', JSON.stringify(allBookings, null, 2));
-
-      if (allBookings) {
-        console.log('Keys:', Object.keys(allBookings));
-        console.log('Number of keys:', Object.keys(allBookings).length);
+      if (!allBookings || typeof allBookings !== 'object') {
+        return this.getEmptyRevenueReport(currentLabel, previousLabel);
       }
 
-      let currentRevenue = 0;
-      let previousRevenue = 0;
-      let totalBookings = 0;
-      let paidBookings = 0;
+      const { currentRevenue, previousRevenue, totalBookings, paidBookings } = 
+        this.calculatePeriodRevenue(allBookings, currentPeriodStart, currentPeriodEnd, previousPeriodStart, previousPeriodEnd);
 
-      if (allBookings && typeof allBookings === 'object') {
-        const bookingEntries = Object.entries(allBookings);
-        console.log('\n=== Processing bookings ===');
-        console.log('Total entries:', bookingEntries.length);
-
-        bookingEntries.forEach(([key, booking]: [string, any]) => {
-          totalBookings++;
-
-          console.log(`\n--- Booking ${totalBookings} (Key: ${key}) ---`);
-          console.log('Full booking data:', JSON.stringify(booking, null, 2));
-
-          console.log('statusPayment:', booking.statusPayment);
-          console.log('status:', booking.status);
-          console.log('paymentStatus:', booking.paymentStatus);
-          console.log('price:', booking.price);
-          console.log('createdAt:', booking.createdAt);
-
-          const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
-
-          if (paymentStatus !== 'paid') {
-            console.log(`❌ Skipped: Payment status is "${paymentStatus}", not "paid"`);
-            return;
-          }
-
-          paidBookings++;
-
-          if (!booking.price) {
-            console.log('❌ Skipped: No price');
-            return;
-          }
-
-          const bookingDateStr = booking.createdAt;
-          if (!bookingDateStr) {
-            console.log('❌ Skipped: No createdAt');
-            return;
-          }
-
-          const bookingDate = new Date(bookingDateStr);
-          if (isNaN(bookingDate.getTime())) {
-            console.warn('❌ Invalid date:', bookingDateStr);
-            return;
-          }
-
-          const price = parseFloat(booking.price) || 0;
-
-          console.log('✅ Valid booking - Date:', bookingDate, 'Price:', price);
-
-          if (bookingDate >= currentPeriodStart && bookingDate <= currentPeriodEnd) {
-            currentRevenue += price;
-            console.log('✅ Added to current period');
-          }
-
-          if (bookingDate >= previousPeriodStart && bookingDate <= previousPeriodEnd) {
-            previousRevenue += price;
-            console.log('✅ Added to previous period');
-          }
-        });
-      }
-
-      console.log('\n=== SUMMARY ===');
       console.log('Total bookings:', totalBookings);
       console.log('Paid bookings:', paidBookings);
       console.log('Current Revenue:', currentRevenue);
       console.log('Previous Revenue:', previousRevenue);
 
-      let growthPercentage = 0;
-      if (previousRevenue > 0) {
-        growthPercentage = parseFloat(
-          (((currentRevenue - previousRevenue) / previousRevenue) * 100).toFixed(2)
-        );
-      } else if (currentRevenue > 0) {
-        growthPercentage = 100;
-      }
-
+      const growthPercentage = this.calculateGrowthPercentage(currentRevenue, previousRevenue);
       const isPositiveGrowth = growthPercentage >= 0;
 
       return {
+        period,
         currentPeriod: {
           amount: parseFloat(currentRevenue.toFixed(2)),
           label: currentLabel,
+          startDate: currentPeriodStart.toISOString(),
+          endDate: currentPeriodEnd.toISOString(),
         },
         previousPeriod: {
           amount: parseFloat(previousRevenue.toFixed(2)),
           label: previousLabel,
+          startDate: previousPeriodStart.toISOString(),
+          endDate: previousPeriodEnd.toISOString(),
+        },
+        statistics: {
+          totalBookings,
+          paidBookings,
+          averageRevenuePerBooking: paidBookings > 0 
+            ? parseFloat((currentRevenue / paidBookings).toFixed(2))
+            : 0,
         },
         growthPercentage: Math.abs(growthPercentage),
-        isPositiveGrowth: isPositiveGrowth,
+        isPositiveGrowth,
         comparisonText: `Compared to ${previousLabel.toLowerCase()}`,
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error('Error in getRevenueReport:', error);
@@ -471,10 +370,18 @@ export class ManagerService {
     }
   }
 
-  async getRevenueByVehicleType() {
+  /**
+   * Get revenue by vehicle type với filter
+   * @param period: 'day' | 'week' | 'month' | 'year'
+   */
+  async getRevenueByVehicleType(period: string = 'year') {
     try {
       const now = new Date();
-      const currentYear = now.getFullYear();
+      const { startDate, endDate, labels } = this.getDateRangeForVehicleType(period, now);
+
+      console.log('=== REVENUE BY VEHICLE TYPE ===');
+      console.log('Period:', period);
+      console.log('Date range:', startDate, 'to', endDate);
 
       const allBookings = await this.firebaseService.readRecord('bookings');
       const allParks = await this.firebaseService.readRecord('park');
@@ -483,102 +390,433 @@ export class ManagerService {
         throw new Error('Không thể đọc dữ liệu bookings hoặc park.');
       }
 
-      const parkById = new Map<string, any>();
-      Object.entries(allParks).forEach(([parkKey, park]: [string, any]) => {
-        const candidates = [
-          park.id,
-          park.parkId,
-          park._id,
-          park.park_id
-        ]
-          .map(x => (x === undefined || x === null ? '' : String(x).trim()))
-          .filter(Boolean);
+      // Build park lookup map
+      const parkById = this.buildParkLookupMap(allParks);
 
-        if (parkKey) candidates.push(String(parkKey));
+      // Calculate revenue by vehicle type
+      const stats = this.calculateVehicleTypeRevenue(
+        allBookings, 
+        parkById, 
+        startDate, 
+        endDate, 
+        period
+      );
 
-        candidates.forEach(id => parkById.set(id, park));
-      });
+      const result = this.formatVehicleTypeResult(stats, labels, period, startDate, endDate);
 
-      const stats: Record<string, { months: number[]; totalBookings: number; paidBookings: number }> = {};
-
-      Object.entries(allBookings).forEach(([bookingKey, booking]: [string, any]) => {
-        const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
-        if (!paymentStatus) return;
-        if (String(paymentStatus).toLowerCase() !== 'paid') return;
-
-        // parse date
-        const bookingDate = new Date(booking.createdAt);
-        if (isNaN(bookingDate.getTime())) return;
-
-        if (bookingDate.getFullYear() !== currentYear) return;
-
-        const price = Number(booking.price) || 0;
-
-        const parkIdCandidates = [
-          booking.parkId,
-          booking.park_id,
-          booking.idPark,
-          booking.id_park,
-          booking.park,
-          booking.parkingId,
-          booking.parking_id
-        ]
-          .map(x => (x === undefined || x === null ? '' : String(x).trim()))
-          .filter(Boolean);
-
-        let matchedPark: any = undefined;
-        for (const pid of parkIdCandidates) {
-          if (parkById.has(pid)) {
-            matchedPark = parkById.get(pid);
-            break;
-          }
-        }
-
-        const typeFromBooking = booking.type_vehicle || booking.vehicle_type || booking.typeVehicle;
-
-        const typeVehicle =
-          (matchedPark && (matchedPark.type_vehicle || matchedPark.vehicle_type || matchedPark.typeVehicle)) ||
-          typeFromBooking ||
-          'Unknown';
-
-        const typeKey = String(typeVehicle);
-
-        if (!stats[typeKey]) {
-          stats[typeKey] = { months: new Array(12).fill(0), totalBookings: 0, paidBookings: 0 };
-        }
-
-        stats[typeKey].totalBookings += 1;
-        stats[typeKey].paidBookings += 1;
-
-        const monthIndex = bookingDate.getMonth(); // 0..11
-        stats[typeKey].months[monthIndex] += price;
-      });
-
-      const result = Object.keys(stats).map(type => {
-        const s = stats[type];
-        const monthsRounded = s.months.map(m => parseFloat(m.toFixed(2)));
-        const total = monthsRounded.reduce((a, b) => a + b, 0);
-        return {
-          type_vehicle: type,
-          year: currentYear,
-          months: monthsRounded,
-          totalYear: parseFloat(total.toFixed(2)),
-          totalBookings: s.totalBookings,
-          paidBookings: s.paidBookings,
-        };
-      });
-
-      const labels = Array.from({ length: 12 }, (_, i) => {
-        const m = i + 1;
-        return m < 10 ? `0${m}` : `${m}`; // "01", "02", ...
-      });
-
-      return { labels, series: result };
+      return result;
     } catch (error) {
-      console.error('Error in getRevenueByVehicleTypeAllMonths:', error);
+      console.error('Error in getRevenueByVehicleType:', error);
       throw new InternalServerErrorException(
-        `Lỗi khi lấy báo cáo doanh thu theo loại xe (tất cả tháng): ${error.message}`,
+        `Lỗi khi lấy báo cáo doanh thu theo loại xe: ${error.message}`,
       );
     }
   }
+
+  /**
+   * Calculate period ranges dựa trên filter
+   */
+  private calculatePeriodRanges(period: string, now: Date) {
+    let currentPeriodStart: Date;
+    let currentPeriodEnd: Date;
+    let previousPeriodStart: Date;
+    let previousPeriodEnd: Date;
+    let currentLabel: string;
+    let previousLabel: string;
+
+    switch (period.toLowerCase()) {
+      case 'day':
+        currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        currentPeriodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+        previousPeriodStart = new Date(currentPeriodStart);
+        previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
+        previousPeriodEnd = new Date(currentPeriodEnd);
+        previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 1);
+
+        currentLabel = 'Today';
+        previousLabel = 'Yesterday';
+        break;
+
+      case 'week':
+        // Current week (Monday to Sunday)
+        currentPeriodStart = new Date(now);
+        const dayOfWeek = currentPeriodStart.getDay();
+        const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+        currentPeriodStart.setDate(currentPeriodStart.getDate() - diff);
+        currentPeriodStart.setHours(0, 0, 0, 0);
+
+        currentPeriodEnd = new Date(currentPeriodStart);
+        currentPeriodEnd.setDate(currentPeriodEnd.getDate() + 6);
+        currentPeriodEnd.setHours(23, 59, 59, 999);
+
+        // Previous week
+        previousPeriodStart = new Date(currentPeriodStart);
+        previousPeriodStart.setDate(previousPeriodStart.getDate() - 7);
+        previousPeriodEnd = new Date(currentPeriodEnd);
+        previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 7);
+
+        currentLabel = 'This Week';
+        previousLabel = 'Last Week';
+        break;
+
+      case 'year':
+        currentPeriodStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+        currentPeriodEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+
+        previousPeriodStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0);
+        previousPeriodEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+
+        currentLabel = 'This Year';
+        previousLabel = 'Last Year';
+        break;
+
+      case 'month':
+      default:
+        currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+        previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+        previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+        currentLabel = 'This Month';
+        previousLabel = 'Last Month';
+        break;
+    }
+
+    return {
+      currentPeriodStart,
+      currentPeriodEnd,
+      previousPeriodStart,
+      previousPeriodEnd,
+      currentLabel,
+      previousLabel,
+    };
+  }
+
+  /**
+   * Calculate revenue cho current và previous period
+   */
+  private calculatePeriodRevenue(
+    allBookings: any,
+    currentStart: Date,
+    currentEnd: Date,
+    previousStart: Date,
+    previousEnd: Date
+  ) {
+    let currentRevenue = 0;
+    let previousRevenue = 0;
+    let totalBookings = 0;
+    let paidBookings = 0;
+
+    Object.entries(allBookings).forEach(([key, booking]: [string, any]) => {
+      totalBookings++;
+
+      const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
+      if (String(paymentStatus).toLowerCase() !== 'paid') {
+        return;
+      }
+
+      paidBookings++;
+
+      const bookingDateStr = booking.createdAt || booking.created_at || booking.date;
+      if (!bookingDateStr) return;
+
+      const bookingDate = new Date(bookingDateStr);
+      if (isNaN(bookingDate.getTime())) return;
+
+      const price = parseFloat(booking.price) || 0;
+
+      if (bookingDate >= currentStart && bookingDate <= currentEnd) {
+        currentRevenue += price;
+      }
+
+      if (bookingDate >= previousStart && bookingDate <= previousEnd) {
+        previousRevenue += price;
+      }
+    });
+
+    return { currentRevenue, previousRevenue, totalBookings, paidBookings };
+  }
+
+  /**
+   * Calculate growth percentage
+   */
+  private calculateGrowthPercentage(current: number, previous: number): number {
+    if (previous > 0) {
+      return parseFloat((((current - previous) / previous) * 100).toFixed(2));
+    } else if (current > 0) {
+      return 100;
+    }
+    return 0;
+  }
+
+  /**
+   * Get date range cho vehicle type report
+   */
+  private getDateRangeForVehicleType(period: string, now: Date) {
+    let startDate: Date;
+    let endDate: Date;
+    let labels: string[];
+
+    switch (period.toLowerCase()) {
+      case 'day':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+        break;
+
+      case 'week':
+        startDate = new Date(now);
+        const dayOfWeek = startDate.getDay();
+        const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startDate.setDate(startDate.getDate() - diff);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+        labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        break;
+
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        const daysInMonth = endDate.getDate();
+        labels = Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1;
+          return day < 10 ? `0${day}` : `${day}`;
+        });
+        break;
+
+      case 'year':
+      default:
+        startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+        endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        labels = Array.from({ length: 12 }, (_, i) => {
+          const m = i + 1;
+          return m < 10 ? `0${m}` : `${m}`;
+        });
+        break;
+    }
+
+    return { startDate, endDate, labels };
+  }
+
+  /**
+   * Build park lookup map
+   */
+  private buildParkLookupMap(allParks: any): Map<string, any> {
+    const parkById = new Map<string, any>();
+
+    Object.entries(allParks).forEach(([parkKey, park]: [string, any]) => {
+      const candidates = [
+        park.id,
+        park.parkId,
+        park._id,
+        park.park_id,
+      ]
+        .map(x => (x === undefined || x === null ? '' : String(x).trim()))
+        .filter(Boolean);
+
+      if (parkKey) candidates.push(String(parkKey));
+
+      candidates.forEach(id => parkById.set(id, park));
+    });
+
+    return parkById;
+  }
+
+  /**
+   * Calculate revenue by vehicle type
+   */
+  private calculateVehicleTypeRevenue(
+    allBookings: any,
+    parkById: Map<string, any>,
+    startDate: Date,
+    endDate: Date,
+    period: string
+  ) {
+    const stats: Record<string, { 
+      timeData: number[]; 
+      totalBookings: number; 
+      paidBookings: number;
+      totalRevenue: number;
+    }> = {};
+
+    // Determine time slots based on period
+    const timeSlots = this.getTimeSlots(period, startDate, endDate);
+
+    Object.entries(allBookings).forEach(([bookingKey, booking]: [string, any]) => {
+      const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
+      if (String(paymentStatus).toLowerCase() !== 'paid') return;
+
+      const bookingDateStr = booking.createdAt || booking.created_at || booking.date;
+      if (!bookingDateStr) return;
+
+      const bookingDate = new Date(bookingDateStr);
+      if (isNaN(bookingDate.getTime())) return;
+
+      // Check if booking is within date range
+      if (bookingDate < startDate || bookingDate > endDate) return;
+
+      const price = Number(booking.price) || 0;
+
+      // Find matching park
+      const parkIdCandidates = [
+        booking.parkId,
+        booking.park_id,
+        booking.idPark,
+        booking.id_park,
+        booking.park,
+        booking.parkingId,
+        booking.parking_id,
+      ]
+        .map(x => (x === undefined || x === null ? '' : String(x).trim()))
+        .filter(Boolean);
+
+      let matchedPark: any = undefined;
+      for (const pid of parkIdCandidates) {
+        if (parkById.has(pid)) {
+          matchedPark = parkById.get(pid);
+          break;
+        }
+      }
+
+      const typeFromBooking = booking.type_vehicle || booking.vehicle_type || booking.typeVehicle;
+      const typeVehicle =
+        (matchedPark && (matchedPark.type_vehicle || matchedPark.vehicle_type || matchedPark.typeVehicle)) ||
+        typeFromBooking ||
+        'Unknown';
+
+      const typeKey = String(typeVehicle);
+
+      if (!stats[typeKey]) {
+        stats[typeKey] = {
+          timeData: new Array(timeSlots).fill(0),
+          totalBookings: 0,
+          paidBookings: 0,
+          totalRevenue: 0,
+        };
+      }
+
+      stats[typeKey].totalBookings += 1;
+      stats[typeKey].paidBookings += 1;
+      stats[typeKey].totalRevenue += price;
+
+      // Determine time index
+      const timeIndex = this.getTimeIndex(period, bookingDate, startDate);
+      if (timeIndex >= 0 && timeIndex < timeSlots) {
+        stats[typeKey].timeData[timeIndex] += price;
+      }
+    });
+
+    return stats;
+  }
+
+  /**
+   * Get number of time slots based on period
+   */
+  private getTimeSlots(period: string, startDate: Date, endDate: Date): number {
+    switch (period.toLowerCase()) {
+      case 'day':
+        return 24; // hours
+      case 'week':
+        return 7; // days
+      case 'month':
+        return endDate.getDate(); // days in month
+      case 'year':
+        return 12; // months
+      default:
+        return 12;
+    }
+  }
+
+  /**
+   * Get time index for booking
+   */
+  private getTimeIndex(period: string, bookingDate: Date, startDate: Date): number {
+    switch (period.toLowerCase()) {
+      case 'day':
+        return bookingDate.getHours();
+      case 'week':
+        const dayOfWeek = bookingDate.getDay();
+        return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+      case 'month':
+        return bookingDate.getDate() - 1;
+      case 'year':
+        return bookingDate.getMonth();
+      default:
+        return bookingDate.getMonth();
+    }
+  }
+
+  /**
+   * Format vehicle type result
+   */
+  private formatVehicleTypeResult(
+    stats: any,
+    labels: string[],
+    period: string,
+    startDate: Date,
+    endDate: Date
+  ) {
+    const series = Object.entries(stats).map(([type, data]: [string, any]) => {
+      const timeDataRounded = data.timeData.map(v => parseFloat(v.toFixed(2)));
+      return {
+        type_vehicle: type,
+        period,
+        data: timeDataRounded,
+        totalRevenue: parseFloat(data.totalRevenue.toFixed(2)),
+        totalBookings: data.totalBookings,
+        paidBookings: data.paidBookings,
+        averageRevenue: data.paidBookings > 0 
+          ? parseFloat((data.totalRevenue / data.paidBookings).toFixed(2))
+          : 0,
+      };
+    });
+
+    return {
+      period,
+      dateRange: {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      },
+      labels,
+      series,
+      summary: {
+        totalVehicleTypes: series.length,
+        totalRevenue: parseFloat(
+          series.reduce((sum, s) => sum + s.totalRevenue, 0).toFixed(2)
+        ),
+        totalBookings: series.reduce((sum, s) => sum + s.totalBookings, 0),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Get empty revenue report
+   */
+  private getEmptyRevenueReport(currentLabel: string, previousLabel: string) {
+    return {
+      currentPeriod: {
+        amount: 0,
+        label: currentLabel,
+      },
+      previousPeriod: {
+        amount: 0,
+        label: previousLabel,
+      },
+      statistics: {
+        totalBookings: 0,
+        paidBookings: 0,
+        averageRevenuePerBooking: 0,
+      },
+      growthPercentage: 0,
+      isPositiveGrowth: true,
+      comparisonText: `Compared to ${previousLabel.toLowerCase()}`,
+      timestamp: new Date().toISOString(),
+    };
+  }
 }
+
