@@ -37,7 +37,10 @@ export class UserController {
     return this.userService.cancelReservation(bookingId);
   }
 
-
+  @Put('update-profile/:userId')
+  async updateProfile(@Param('userId') userId: string, @Body() body: any) {
+    return this.userService.updateProfile(userId, body);
+  }
 
 
 }

@@ -13,10 +13,13 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class UserService {
+  private firebaseAuth: admin.auth.Auth;
   constructor(
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private firebaseService: FirebaseService,
-  ) { }
+  ) {
+    this.firebaseAuth = admin.auth();
+  }
 
   async updateFcmToken(userId: string, token: string) {
     // Thử tìm trong collection staff
@@ -321,5 +324,23 @@ export class UserService {
       price: booking.price ?? park?.price ?? null,
       booking: updatedBooking,
     };
+  }
+
+  async updateProfile(userId: string, body: any) {
+    const userPath = `users/${userId}`;
+    const existingUser = await this.firebaseService.readFirestoreRecord(userPath);
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+    // update user profile in firebase auth
+    if (body.email || body.password || body.displayName || body.phoneNumber) {
+      await this.firebaseAuth.updateUser(userId, {
+        ...(body.email && { email: body.email }),
+        ...(body.password && { password: body.password }),
+        ...(body.displayName && { displayName: body.displayName }),
+        ...(body.phoneNumber && { phoneNumber: body.phoneNumber }),
+      });
+    }
+    await this.firebaseService.updateFirestoreRecord(userPath, body);
   }
 }
