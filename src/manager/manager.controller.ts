@@ -7,7 +7,6 @@ import {
   Put,
   Delete,
   Query,
-  Query,
 } from '@nestjs/common';
 import { ManagerService } from './manager.service';
 
