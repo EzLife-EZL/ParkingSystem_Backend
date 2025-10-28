@@ -105,65 +105,78 @@ export class AdminService {
     name?: string,
     phone?: string,
     role?: string,
-  ) {
+    email?: string,
+    address?: string,
+    password?: string,
+) {
     try {
-      const userRecord = await this.firebaseAuth.getUser(userId);
-      if (!userRecord) {
-        throw new NotFoundException('Người dùng không tồn tại');
-      }
+        const userRecord = await this.firebaseAuth.getUser(userId);
+        if (!userRecord) {
+            throw new NotFoundException('Người dùng không tồn tại');
+        }
 
-      // Lấy thông tin hiện tại từ Firestore
-      const currentUserData = await this.firebaseService.readFirestoreRecord(`users/${userId}`);
+        // Chuẩn bị dữ liệu cập nhật cho Firebase Auth
+        const authUpdateData: any = {};
+        if (name !== undefined) {
+            authUpdateData.displayName = name;
+        }
+        if (phone !== undefined && phone !== null && phone !== '') {
+            authUpdateData.phoneNumber = `+84${phone.replace(/^0/, '')}`;
+        }
+        if (email !== undefined && email !== null && email !== '') {
+            authUpdateData.email = email;
+        }
+        if (password !== undefined && password !== null && password !== '') {
+            authUpdateData.password = password;
+        }
 
-      // Chuẩn bị dữ liệu cập nhật cho Firebase Auth
-      const authUpdateData: any = {};
-      if (name !== undefined) {
-        authUpdateData.displayName = name;
-      }
-      if (phone !== undefined && phone !== null && phone !== '') {
-        authUpdateData.phoneNumber = `+84${phone.replace(/^0/, '')}`;
-      }
+        // Cập nhật Firebase Auth nếu có dữ liệu
+        if (Object.keys(authUpdateData).length > 0) {
+            await this.firebaseAuth.updateUser(userId, authUpdateData);
+        }
 
-      // Chỉ cập nhật Firebase Auth nếu có dữ liệu thay đổi
-      if (Object.keys(authUpdateData).length > 0) {
-        await this.firebaseAuth.updateUser(userId, authUpdateData);
-      }
+        // Cập nhật custom claims nếu role thay đổi
+        if (role !== undefined) {
+            const currentClaims = userRecord.customClaims || {};
+            await this.firebaseAuth.setCustomUserClaims(userId, {
+                ...currentClaims,
+                role: role,
+            });
+        }
 
-      if (role !== undefined) {
-        const currentClaims = userRecord.customClaims || {};
-        await this.firebaseAuth.setCustomUserClaims(userId, {
-          ...currentClaims,
-          role: role,
-        });
-      }
+        // Chuẩn bị dữ liệu cho Firestore
+        const firestoreUpdateData: any = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
 
-      // Chuẩn bị dữ liệu cập nhật cho Firestore
-      const firestoreUpdateData: any = {
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
+        if (name !== undefined) {
+            firestoreUpdateData.name = name;
+        }
+        if (phone !== undefined) {
+            firestoreUpdateData.phone = phone ? `+84${phone.replace(/^0/, '')}` : null;
+        }
+        if (role !== undefined) {
+            firestoreUpdateData.role = role;
+        }
+        if (email !== undefined) {
+            firestoreUpdateData.email = email;
+        }
+        if (address !== undefined) {
+            firestoreUpdateData.address = address;
+        }
 
-      if (name !== undefined) {
-        firestoreUpdateData.name = name;
-      }
-      if (phone !== undefined) {
-        firestoreUpdateData.phone = phone ? `+84${phone.replace(/^0/, '')}` : null;
-      }
-      if (role !== undefined) {
-        firestoreUpdateData.role = role;
-      }
+        await this.firebaseService.updateFirestoreRecord(
+            `users/${userId}`,
+            firestoreUpdateData,
+        );
 
-      await this.firebaseService.updateFirestoreRecord(
-        `users/${userId}`,
-        firestoreUpdateData,
-      );
-
-      return {
-        message: 'Cập nhật thông tin người dùng thành công',
-      };
+        return {
+            message: 'Cập nhật thông tin người dùng thành công',
+        };
     } catch (error) {
-      throw new InternalServerErrorException(error.message);
+        throw new InternalServerErrorException(error.message);
     }
-  }
+}
 
   async deleteUser(userId: string) {
     try {
@@ -292,6 +305,4 @@ export class AdminService {
       return { success: false, message: 'Lỗi xử lý booking' };
     }
   }
-
-
 }

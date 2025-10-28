@@ -47,12 +47,26 @@ export class AdminController {
 
   @Put('update-user-info/:id')
   async updateUserInfo(
-    @Param('id') userId: string,
-    @Body('name') name: string,
-    @Body('phone') phone: string,
-    @Body('role') role: string,
+      @Param('id') userId: string,
+      @Body() updateData: {
+          name?: string;
+          phone?: string;
+          role?: string;
+          email?: string;
+          address?: string;
+          password?: string;
+      }
   ) {
-    return this.adminService.updateUserInfo(userId, name, phone, role);
+      const { name, phone, role, email, address, password } = updateData;
+      return this.adminService.updateUserInfo(
+          userId, 
+          name, 
+          phone, 
+          role, 
+          email, 
+          address, 
+          password
+      );
   }
 
   @Delete('delete-user/:id')

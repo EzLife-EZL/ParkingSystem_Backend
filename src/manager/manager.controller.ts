@@ -6,6 +6,7 @@ import {
   Get,
   Put,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ManagerService } from './manager.service';
 
@@ -55,5 +56,20 @@ export class ManagerController {
   @Post('parking-staff')
   async createParkingStaff(@Body() body: SignupDto) {
     return this.managerService.createParkingStaff(body);
+  }
+
+  @Get('parking-overview')
+  async getParkingOverview() {
+    return this.managerService.getParkingOverview();
+  }
+
+  @Get('revenue-report')
+  async getRevenueReport(@Query('period') period?: string) {
+    return this.managerService.getRevenueReport(period || 'month');
+  }
+
+  @Get('revenue-vehicle-type')
+  async getRevenueByVehicleType() {
+    return this.managerService.getRevenueByVehicleType();
   }
 }

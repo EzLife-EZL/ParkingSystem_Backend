@@ -240,4 +240,344 @@ export class ManagerService {
       throw new InternalServerErrorException(error.message);
     }
   }
+
+  async getParkingOverview() {
+    try {
+      const now = new Date();
+      
+      const allParks = await this.firebaseService.readRecord('park');
+      
+      const allBookings = await this.firebaseService.readRecord('bookings');
+
+      if (!allParks || typeof allParks !== 'object') {
+        return {
+          parkedVehicles: 0,
+          availableSpots: 0,
+          totalSpots: 0,
+          occupancyRate: 0,
+        };
+      }
+
+      let totalSlots = 0;
+      let occupiedSlots = 0;
+
+      const currentlyOccupiedSlotIds = new Set<string>();
+
+      if (allBookings && typeof allBookings === 'object') {
+        Object.values(allBookings).forEach((booking: any) => {
+          if (booking.slotStatus === 'chua gui xe' || booking.status === 'da gui xe') {
+            if (booking.slotId) {
+              currentlyOccupiedSlotIds.add(booking.slotId);
+            }
+          }
+        });
+      }
+
+      Object.values(allParks).forEach((park: any) => {
+        if (park.slots && typeof park.slots === 'object') {
+          Object.entries(park.slots).forEach(([slotId, slot]: [string, any]) => {
+            totalSlots++;
+            
+            if (currentlyOccupiedSlotIds.has(slotId)) {
+              occupiedSlots++;
+            }
+          });
+        }
+      });
+
+      const availableSlots = totalSlots - occupiedSlots;
+      const occupancyRate = totalSlots > 0 
+        ? parseFloat(((occupiedSlots / totalSlots) * 100).toFixed(2))
+        : 0;
+
+      return {
+        parkedVehicles: occupiedSlots,
+        availableSpots: availableSlots,
+        totalSpots: totalSlots,
+        occupancyRate: occupancyRate,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Lỗi khi lấy thông tin tổng quan: ${error.message}`,
+      );
+    }
+  }
+
+  async getRevenueReport(period: string) {
+    try {
+      const now = new Date();
+      let currentPeriodStart: Date;
+      let currentPeriodEnd: Date;
+      let previousPeriodStart: Date;
+      let previousPeriodEnd: Date;
+      let currentLabel: string;
+      let previousLabel: string;
+
+      switch (period.toLowerCase()) {
+        case 'day':
+          currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+          currentPeriodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+          previousPeriodStart = new Date(currentPeriodStart);
+          previousPeriodStart.setDate(previousPeriodStart.getDate() - 1);
+          previousPeriodEnd = new Date(currentPeriodEnd);
+          previousPeriodEnd.setDate(previousPeriodEnd.getDate() - 1);
+
+          currentLabel = 'Today';
+          previousLabel = 'Yesterday';
+          break;
+
+        case 'year':
+          currentPeriodStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+          currentPeriodEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+
+          previousPeriodStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0);
+          previousPeriodEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+
+          currentLabel = 'This Year';
+          previousLabel = 'Last Year';
+          break;
+
+        case 'month':
+        default:
+          currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+          currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+          previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+          previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+          currentLabel = 'This Month';
+          previousLabel = 'Last Month';
+          break;
+      }
+
+      console.log('=== DEBUG REVENUE REPORT ===');
+      console.log('Period:', period);
+      console.log('Current Period:', currentPeriodStart, 'to', currentPeriodEnd);
+
+      const allBookings = await this.firebaseService.readRecord('bookings');
+
+      // Kiểm tra data structure
+      console.log('\n=== FIREBASE DATA DEBUG ===');
+      console.log('Type of allBookings:', typeof allBookings);
+      console.log('Is array?', Array.isArray(allBookings));
+      console.log('allBookings:', JSON.stringify(allBookings, null, 2));
+
+      if (allBookings) {
+        console.log('Keys:', Object.keys(allBookings));
+        console.log('Number of keys:', Object.keys(allBookings).length);
+      }
+
+      let currentRevenue = 0;
+      let previousRevenue = 0;
+      let totalBookings = 0;
+      let paidBookings = 0;
+
+      if (allBookings && typeof allBookings === 'object') {
+        const bookingEntries = Object.entries(allBookings);
+        console.log('\n=== Processing bookings ===');
+        console.log('Total entries:', bookingEntries.length);
+
+        bookingEntries.forEach(([key, booking]: [string, any]) => {
+          totalBookings++;
+
+          console.log(`\n--- Booking ${totalBookings} (Key: ${key}) ---`);
+          console.log('Full booking data:', JSON.stringify(booking, null, 2));
+
+          console.log('statusPayment:', booking.statusPayment);
+          console.log('status:', booking.status);
+          console.log('paymentStatus:', booking.paymentStatus);
+          console.log('price:', booking.price);
+          console.log('createdAt:', booking.createdAt);
+
+          const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
+
+          if (paymentStatus !== 'paid') {
+            console.log(`❌ Skipped: Payment status is "${paymentStatus}", not "paid"`);
+            return;
+          }
+
+          paidBookings++;
+
+          if (!booking.price) {
+            console.log('❌ Skipped: No price');
+            return;
+          }
+
+          const bookingDateStr = booking.createdAt;
+          if (!bookingDateStr) {
+            console.log('❌ Skipped: No createdAt');
+            return;
+          }
+
+          const bookingDate = new Date(bookingDateStr);
+          if (isNaN(bookingDate.getTime())) {
+            console.warn('❌ Invalid date:', bookingDateStr);
+            return;
+          }
+
+          const price = parseFloat(booking.price) || 0;
+
+          console.log('✅ Valid booking - Date:', bookingDate, 'Price:', price);
+
+          if (bookingDate >= currentPeriodStart && bookingDate <= currentPeriodEnd) {
+            currentRevenue += price;
+            console.log('✅ Added to current period');
+          }
+
+          if (bookingDate >= previousPeriodStart && bookingDate <= previousPeriodEnd) {
+            previousRevenue += price;
+            console.log('✅ Added to previous period');
+          }
+        });
+      }
+
+      console.log('\n=== SUMMARY ===');
+      console.log('Total bookings:', totalBookings);
+      console.log('Paid bookings:', paidBookings);
+      console.log('Current Revenue:', currentRevenue);
+      console.log('Previous Revenue:', previousRevenue);
+
+      let growthPercentage = 0;
+      if (previousRevenue > 0) {
+        growthPercentage = parseFloat(
+          (((currentRevenue - previousRevenue) / previousRevenue) * 100).toFixed(2)
+        );
+      } else if (currentRevenue > 0) {
+        growthPercentage = 100;
+      }
+
+      const isPositiveGrowth = growthPercentage >= 0;
+
+      return {
+        currentPeriod: {
+          amount: parseFloat(currentRevenue.toFixed(2)),
+          label: currentLabel,
+        },
+        previousPeriod: {
+          amount: parseFloat(previousRevenue.toFixed(2)),
+          label: previousLabel,
+        },
+        growthPercentage: Math.abs(growthPercentage),
+        isPositiveGrowth: isPositiveGrowth,
+        comparisonText: `Compared to ${previousLabel.toLowerCase()}`,
+      };
+    } catch (error) {
+      console.error('Error in getRevenueReport:', error);
+      throw new InternalServerErrorException(
+        `Lỗi khi lấy báo cáo doanh thu: ${error.message}`,
+      );
+    }
+  }
+
+  async getRevenueByVehicleType() {
+    try {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+
+      const allBookings = await this.firebaseService.readRecord('bookings');
+      const allParks = await this.firebaseService.readRecord('park');
+
+      if (!allBookings || !allParks) {
+        throw new Error('Không thể đọc dữ liệu bookings hoặc park.');
+      }
+
+      const parkById = new Map<string, any>();
+      Object.entries(allParks).forEach(([parkKey, park]: [string, any]) => {
+        const candidates = [
+          park.id,
+          park.parkId,
+          park._id,
+          park.park_id
+        ]
+          .map(x => (x === undefined || x === null ? '' : String(x).trim()))
+          .filter(Boolean);
+
+        if (parkKey) candidates.push(String(parkKey));
+
+        candidates.forEach(id => parkById.set(id, park));
+      });
+
+      const stats: Record<string, { months: number[]; totalBookings: number; paidBookings: number }> = {};
+
+      Object.entries(allBookings).forEach(([bookingKey, booking]: [string, any]) => {
+        const paymentStatus = booking.statusPayment || booking.paymentStatus || booking.status;
+        if (!paymentStatus) return;
+        if (String(paymentStatus).toLowerCase() !== 'paid') return;
+
+        // parse date
+        const bookingDate = new Date(booking.createdAt);
+        if (isNaN(bookingDate.getTime())) return;
+
+        if (bookingDate.getFullYear() !== currentYear) return;
+
+        const price = Number(booking.price) || 0;
+
+        const parkIdCandidates = [
+          booking.parkId,
+          booking.park_id,
+          booking.idPark,
+          booking.id_park,
+          booking.park,
+          booking.parkingId,
+          booking.parking_id
+        ]
+          .map(x => (x === undefined || x === null ? '' : String(x).trim()))
+          .filter(Boolean);
+
+        let matchedPark: any = undefined;
+        for (const pid of parkIdCandidates) {
+          if (parkById.has(pid)) {
+            matchedPark = parkById.get(pid);
+            break;
+          }
+        }
+
+        const typeFromBooking = booking.type_vehicle || booking.vehicle_type || booking.typeVehicle;
+
+        const typeVehicle =
+          (matchedPark && (matchedPark.type_vehicle || matchedPark.vehicle_type || matchedPark.typeVehicle)) ||
+          typeFromBooking ||
+          'Unknown';
+
+        const typeKey = String(typeVehicle);
+
+        if (!stats[typeKey]) {
+          stats[typeKey] = { months: new Array(12).fill(0), totalBookings: 0, paidBookings: 0 };
+        }
+
+        stats[typeKey].totalBookings += 1;
+        stats[typeKey].paidBookings += 1;
+
+        const monthIndex = bookingDate.getMonth(); // 0..11
+        stats[typeKey].months[monthIndex] += price;
+      });
+
+      const result = Object.keys(stats).map(type => {
+        const s = stats[type];
+        const monthsRounded = s.months.map(m => parseFloat(m.toFixed(2)));
+        const total = monthsRounded.reduce((a, b) => a + b, 0);
+        return {
+          type_vehicle: type,
+          year: currentYear,
+          months: monthsRounded,
+          totalYear: parseFloat(total.toFixed(2)),
+          totalBookings: s.totalBookings,
+          paidBookings: s.paidBookings,
+        };
+      });
+
+      const labels = Array.from({ length: 12 }, (_, i) => {
+        const m = i + 1;
+        return m < 10 ? `0${m}` : `${m}`; // "01", "02", ...
+      });
+
+      return { labels, series: result };
+    } catch (error) {
+      console.error('Error in getRevenueByVehicleTypeAllMonths:', error);
+      throw new InternalServerErrorException(
+        `Lỗi khi lấy báo cáo doanh thu theo loại xe (tất cả tháng): ${error.message}`,
+      );
+    }
+  }
 }

@@ -17,10 +17,10 @@ class SlotDto {
     slotName: string;
 
     @IsString()
-    pos_X: string;
+    pos_X: number;
 
     @IsString()
-    pos_Y: string;
+    pos_Y: number;
 }
 
 class SlotDataDto {
