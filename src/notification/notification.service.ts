@@ -26,9 +26,9 @@ export class NotificationService {
     // Convert the object to an array of values
     const notificationsArray = notifications ? Object.values(notifications) : [];
 
-    const staffNotifications = notificationsArray.filter(
-      (notification: any) => notification.staffId === staffId
-    );
+    const staffNotifications = notificationsArray
+      .filter((notification: any) => notification.staffId === staffId)
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return staffNotifications;
   }
