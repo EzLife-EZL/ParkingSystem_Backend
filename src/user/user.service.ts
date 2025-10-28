@@ -16,24 +16,48 @@ export class UserService {
   constructor(
     @InjectModel(Doctor.name) private DoctorModel: Model<Doctor>,
     private firebaseService: FirebaseService,
-  ) {}
+  ) { }
 
   async updateFcmToken(userId: string, token: string) {
-    const path = 'staff/' + userId;
-    const userDoc = await this.firebaseService.readFirestoreRecord(path);
+    // Thử tìm trong collection staff
+    const staffPath = `staff/${userId}`;
+    const userPath = `users/${userId}`;
 
-    console.log('User document:', userDoc);
+    let targetPath = '';
+    let existingDoc: any = null;
 
-    // Nếu user chưa có document thì tạo mới
-    if (!userDoc) {
-      return this.firebaseService.createFirestoreRecord(path, {
+    // Kiểm tra staff trước
+    const staffDoc = await this.firebaseService.readFirestoreRecord(staffPath);
+    console.log('Staff doc:', staffDoc);
+    if (staffDoc) {
+      targetPath = staffPath;
+      existingDoc = staffDoc;
+    } else {
+      // Nếu không phải staff thì thử trong users
+      const userDoc = await this.firebaseService.readFirestoreRecord(userPath);
+      if (userDoc) {
+        targetPath = userPath;
+        existingDoc = userDoc;
+      }
+    }
+
+    // Nếu chưa có trong cả hai => mặc định tạo mới trong users
+    if (!targetPath) {
+      targetPath = userPath;
+    }
+
+    console.log('Updating FCM for path:', targetPath);
+
+    // Nếu chưa có document thì tạo mới
+    if (!existingDoc) {
+      return this.firebaseService.createFirestoreRecord(targetPath, {
         fcmToken: token,
         createdAt: new Date().toISOString(),
       });
     }
 
-    // Nếu đã có thì cập nhật hoặc thêm mới field
-    return this.firebaseService.updateFirestoreRecord(path, {
+    // Nếu đã có thì cập nhật
+    return this.firebaseService.updateFirestoreRecord(targetPath, {
       fcmToken: token,
       updatedAt: new Date().toISOString(),
     });
@@ -90,12 +114,48 @@ export class UserService {
     );
 
     // 4) Thống báo cho staff
-    await this.notifyStaff(parkingSlot.staffId, 'You have a new reservation.');
+    await this.notifyStaff(parkingSlot.staffId, `User ${reservation.userId} has made a new reservation.`);
+
+    // 5) Thống báo cho người dùng
+    await this.notifyUser(reservation.userId, 'You have made a new reservation.');
 
     return {
       message: 'Reservation successful',
       reservation: reservationRecord,
     };
+  }
+
+  async notifyUser(userId: string, message: string) {
+    try {
+      const user: any = await this.firebaseService.readFirestoreRecord(
+        'users/' + userId,
+      );
+      if (!user) {
+        throw new NotFoundException('user not found');
+      }
+
+      if (user?.fcmToken) {
+        await admin.messaging().send({
+          token: user.fcmToken,
+          notification: {
+            title: 'GoPark Notification',
+            body: message,
+          },
+        });
+
+        await this.firebaseService.createRecord('notifications', {
+          userId: userId,
+          message: message,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`Đã gửi thông báo đến user ${userId}`);
+      } else {
+        console.log(`Fcm token of user ${userId} not found, skip sending notification`);
+      }
+    } catch (error) {
+      console.error('Error notifying user:', error);
+      throw new BadRequestException('Failed to notify user');
+    }
   }
 
   async notifyStaff(staffId: string, message: string) {

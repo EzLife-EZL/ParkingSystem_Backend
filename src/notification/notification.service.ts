@@ -1,77 +1,56 @@
-import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException  } from '@nestjs/common';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
-import { InjectModel } from '@nestjs/mongoose';
-import { Notification } from 'src/schemas/notification.schema';
-import { Model } from 'mongoose';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class NotificationService {
   constructor(
-  @InjectModel(Notification.name) private notificationModel: Model<Notification>,
-) { }
-        
-  async createNotification(createNotificationDto: CreateNotificationDto) {
-    try {
-      const createdNotification = new this.notificationModel({
-        user: createNotificationDto.userId,
-        userModel: createNotificationDto.userModel,
-        type:  createNotificationDto.type,
-        content: createNotificationDto.content,
-        navigatePath: createNotificationDto.navigatePath,
-      });
+    private firebaseService: FirebaseService,
+  ) { }
 
-      return await createdNotification.save();
-    } catch (error) {
-      console.error('Lỗi khi tạo thông báo:', error);
-      throw new InternalServerErrorException('Đã xảy ra lỗi khi tạo thông báo');
-    }
-  }
-
-  async getAllNotification() {
-    try {
-      return await this.notificationModel.find();
-    } catch (error) {
-      console.error('Lỗi khi lấy tất cả thông báo:', error);
-      throw new InternalServerErrorException('Đã xảy ra lỗi khi lấy tất cả thông báo');
-    }
-  }
 
   async getNotificationsByUserId(userId: string) {
-    try {
-      const notifications = await this.notificationModel.find({ user: userId }).exec();
-      return notifications;
-    } catch (error) {
-      console.error('Lỗi khi lấy thông báo theo người dùng:', error);
-      throw new InternalServerErrorException('Đã xảy ra lỗi khi lấy thông báo theo người dùng');
-    }
+    const notifications = await this.firebaseService.readRecord('notifications');
+    const notificationsArray = notifications ? Object.values(notifications) : [];
+
+    const userNotifications = notificationsArray.filter(
+      (notification: any) => notification.userId === userId
+    );
+    return userNotifications;
   }
 
-  async markAsRead(notificationId: string): Promise<Notification> {
-    try {
-      const updatedNotification = await this.notificationModel.findByIdAndUpdate(
-        notificationId,
-        { isRead: true },
-        { new: true },
-      );
+  async getNotificationsByStaffId(staffId: string) {
+    const notifications = await this.firebaseService.readRecord('notifications');
 
-      if (!updatedNotification) {
-        throw new NotFoundException('Không tìm thấy thông báo');
-      }
+    //console.log('notifications:', notifications);
 
-      return updatedNotification;
-    } catch (error) {
-      console.error('Lỗi khi đánh dấu thông báo đã đọc:', error);
-      throw new InternalServerErrorException('Đã xảy ra lỗi khi đánh dấu thông báo đã đọc');
-    }
-  }
-  
+    // Convert the object to an array of values
+    const notificationsArray = notifications ? Object.values(notifications) : [];
 
-  update(id: number, updateNotificationDto: UpdateNotificationDto) {
-    return `This action updates a #${id} notification`;
+    const staffNotifications = notificationsArray.filter(
+      (notification: any) => notification.staffId === staffId
+    );
+
+    return staffNotifications;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} notification`;
-  }
+
+  // async markAsRead(notificationId: string): Promise<Notification> {
+  //   try {
+  //     const updatedNotification = await this.notificationModel.findByIdAndUpdate(
+  //       notificationId,
+  //       { isRead: true },
+  //       { new: true },
+  //     );
+
+  //     if (!updatedNotification) {
+  //       throw new NotFoundException('Không tìm thấy thông báo');
+  //     }
+
+  //     return updatedNotification;
+  //   } catch (error) {
+  //     console.error('Lỗi khi đánh dấu thông báo đã đọc:', error);
+  //     throw new InternalServerErrorException('Đã xảy ra lỗi khi đánh dấu thông báo đã đọc');
+  //   }
+  // }
+
 }

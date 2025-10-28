@@ -246,8 +246,11 @@ export class AdminService {
         return { success: false, message: 'Booking not found' };
       }
 
+      const slotId = booking.slotId;
+
       let updateData: any = {};
       const now = new Date().toISOString();
+      let notifyMessage = '';
 
       // check slotStatus and update accordingly
       if (booking.slotStatus === 'chua gui xe') {
@@ -255,16 +258,18 @@ export class AdminService {
           slotStatus: 'da gui xe',
           checkInTime: now,
         };
+        notifyMessage = `Your vehicle has been checked in at ${new Date(now).toLocaleTimeString()}`;
       } else if (booking.slotStatus === 'da gui xe') {
         updateData = {
           slotStatus: 'da hoan thanh',
           status: 'done',
           checkOutTime: now,
         };
+        notifyMessage = `Your vehicle has been checked out at ${new Date(now).toLocaleTimeString()}`;
 
         // update slot to be available
-        if (booking.parkId && booking.slotIndex !== undefined) {
-          const slotPath = `park/${booking.parkId}/slots/${booking.slotIndex}`;
+        if (booking.parkId && slotId !== undefined) {
+          const slotPath = `park/${booking.parkId}/slots/${slotId}`;
           await this.firebaseService.updateRecord(slotPath, { isBooked: false });
         }
       } else if (booking.slotStatus === 'da hoan thanh') {
@@ -282,6 +287,15 @@ export class AdminService {
 
       await this.firebaseService.updateRecord(path, updateData);
 
+      if (booking.userId) {
+        await this.notifyUser(booking.userId, notifyMessage);
+      }
+      if (booking.staffId) {
+        await this.notifyStaff(booking.staffId, `Booking ${bookingId} was updated to "${updateData.slotStatus}"`);
+      } else {
+
+        await this.notifyStaff('F5x8WZytqxMsVW7MLS404SfDKh12', `Booking ${bookingId} was updated to "${updateData.slotStatus}"`);
+      }
       return {
         success: true,
         message: `Booking status updated: ${updateData.status}`,
@@ -293,5 +307,72 @@ export class AdminService {
     }
   }
 
+  async notifyUser(userId: string, message: string) {
+    try {
+      const user: any = await this.firebaseService.readFirestoreRecord(
+        'users/' + userId,
+      );
+      if (!user) {
+        throw new NotFoundException('user not found');
+      }
+
+      if (user?.fcmToken) {
+        await admin.messaging().send({
+          token: user.fcmToken,
+          notification: {
+            title: 'GoPark Notification',
+            body: message,
+          },
+        });
+
+        await this.firebaseService.createRecord('notifications', {
+          userId: userId,
+          message: message,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`Đã gửi thông báo đến user ${userId}`);
+      } else {
+        console.log(`Fcm token of user ${userId} not found, skip sending notification`);
+      }
+    } catch (error) {
+      console.error('Error notifying user:', error);
+      throw new BadRequestException('Failed to notify user');
+    }
+  }
+
+  async notifyStaff(staffId: string, message: string) {
+    try {
+      const staff: any = await this.firebaseService.readFirestoreRecord(
+        'staff/F5x8WZytqxMsVW7MLS404SfDKh12',
+      );
+      if (!staff) {
+        throw new NotFoundException('staff not found');
+      }
+
+      if (staff?.fcmToken) {
+        await admin.messaging().send({
+          token: staff.fcmToken,
+          notification: {
+            title: 'GoPark Notification',
+            body: message,
+          },
+        });
+
+        const staffId2 = 'F5x8WZytqxMsVW7MLS404SfDKh12';
+
+        await this.firebaseService.createRecord('notifications', {
+          staffId: staffId2,
+          message: message,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`Đã gửi thông báo đến staff F5x8WZytqxMsVW7MLS404SfDKh12`);
+      } else {
+        console.warn(`staff F5x8WZytqxMsVW7MLS404SfDKh12 không có fcmToken`);
+      }
+    } catch (error) {
+      console.error('Error notifying staff:', error);
+      throw new BadRequestException('Failed to notify staff');
+    }
+  }
 
 }
