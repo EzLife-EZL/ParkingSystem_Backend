@@ -113,11 +113,16 @@ export class UserService {
       reservationData,
     );
 
+    const reservationId = reservationRecord.id;
+    const parkId2 = reservationRecord.parkId;
+
+    console.log('Created reservation with ID:', reservationId);
+
     // 4) Thống báo cho staff
-    await this.notifyStaff(parkingSlot.staffId, `User ${reservation.userId} has made a new reservation.`);
+    await this.notifyStaff(parkingSlot.staffId, parkId2, `User ${reservation.userId} has made a new reservation.`);
 
     // 5) Thống báo cho người dùng
-    await this.notifyUser(reservation.userId, 'You have made a new reservation.');
+    await this.notifyUser(reservation.userId, reservationId, 'You have made a new reservation.');
 
     return {
       message: 'Reservation successful',
@@ -125,7 +130,7 @@ export class UserService {
     };
   }
 
-  async notifyUser(userId: string, message: string) {
+  async notifyUser(userId: string, reservationId: string, message: string) {
     try {
       const user: any = await this.firebaseService.readFirestoreRecord(
         'users/' + userId,
@@ -146,6 +151,8 @@ export class UserService {
         await this.firebaseService.createRecord('notifications', {
           userId: userId,
           message: message,
+          navPath: `booking_detail/${reservationId}`,
+          isRead: false,
           createdAt: new Date().toISOString(),
         });
         console.log(`Đã gửi thông báo đến user ${userId}`);
@@ -158,7 +165,7 @@ export class UserService {
     }
   }
 
-  async notifyStaff(staffId: string, message: string) {
+  async notifyStaff(staffId: string, parkId: string, message: string) {
     try {
       const staff: any = await this.firebaseService.readFirestoreRecord(
         'staff/F5x8WZytqxMsVW7MLS404SfDKh12',
@@ -181,6 +188,8 @@ export class UserService {
         await this.firebaseService.createRecord('notifications', {
           staffId: staffId2,
           message: message,
+          navPath: `park/${parkId}`,
+          isRead: false,
           createdAt: new Date().toISOString(),
         });
         console.log(`Đã gửi thông báo đến staff F5x8WZytqxMsVW7MLS404SfDKh12`);
