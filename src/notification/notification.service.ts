@@ -9,12 +9,12 @@ export class NotificationService {
 
 
   async getNotificationsByUserId(userId: string) {
-    const notifications = await this.firebaseService.readRecord('notifications');
-    const notificationsArray = notifications ? Object.values(notifications) : [];
-
-    const userNotifications = notificationsArray.filter(
-      (notification: any) => notification.userId === userId
-    );
+    //Lấy notifications từ Firebase theo mới nhất về cũ nhất
+    const notificationsData = await this.firebaseService.readRecord('notifications');
+    const notificationsArray = notificationsData ? Object.values(notificationsData) : [];
+    const userNotifications = notificationsArray
+      .filter((notification: any) => notification.userId === userId)
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return userNotifications;
   }
 
