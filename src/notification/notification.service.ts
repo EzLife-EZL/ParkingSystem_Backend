@@ -41,7 +41,7 @@ export class NotificationService {
         throw new NotFoundException('Notification not found');
       }
       await this.firebaseService.updateRecord(`notifications/${notificationId}`, { read: true });
-      return { id: notificationId, ...notification, read: true };
+      return { id: notificationId, ...notification, isRead: true };
     } catch (error) {
       throw new InternalServerErrorException('Failed to mark notification as read');
     }
