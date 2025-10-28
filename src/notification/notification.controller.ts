@@ -16,8 +16,8 @@ export class NotificationController {
   async getNotificationsByStaffId(@Param('staffId') staffId: string) {
     return this.notificationService.getNotificationsByStaffId(staffId);
   }
-  // @Patch(':postId/mark-as-read')
-  // markAsRead(@Param('postId') postId: string) {
-  //   return this.notificationService.markAsRead(postId);
-  // }
+  @Patch(':postId/mark-as-read')
+  markAsRead(@Param('postId') postId: string) {
+    return this.notificationService.markAsRead(postId);
+  }
 }

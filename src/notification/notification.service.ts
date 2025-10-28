@@ -18,6 +18,7 @@ export class NotificationService {
     return userNotifications;
   }
 
+
   async getNotificationsByStaffId(staffId: string) {
     const notifications = await this.firebaseService.readRecord('notifications');
 
@@ -25,7 +26,6 @@ export class NotificationService {
 
     // Convert the object to an array of values
     const notificationsArray = notifications ? Object.values(notifications) : [];
-
     const staffNotifications = notificationsArray
       .filter((notification: any) => notification.staffId === staffId)
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -34,23 +34,17 @@ export class NotificationService {
   }
 
 
-  // async markAsRead(notificationId: string): Promise<Notification> {
-  //   try {
-  //     const updatedNotification = await this.notificationModel.findByIdAndUpdate(
-  //       notificationId,
-  //       { isRead: true },
-  //       { new: true },
-  //     );
-
-  //     if (!updatedNotification) {
-  //       throw new NotFoundException('Không tìm thấy thông báo');
-  //     }
-
-  //     return updatedNotification;
-  //   } catch (error) {
-  //     console.error('Lỗi khi đánh dấu thông báo đã đọc:', error);
-  //     throw new InternalServerErrorException('Đã xảy ra lỗi khi đánh dấu thông báo đã đọc');
-  //   }
-  // }
+  async markAsRead(notificationId: string): Promise<Notification> {
+    try {
+      const notification = await this.firebaseService.readRecordById('notifications', notificationId);
+      if (!notification) {
+        throw new NotFoundException('Notification not found');
+      }
+      await this.firebaseService.updateRecord(`notifications/${notificationId}`, { read: true });
+      return { id: notificationId, ...notification, read: true };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to mark notification as read');
+    }
+  }
 
 }
